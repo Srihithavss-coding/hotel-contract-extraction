@@ -1,0 +1,243 @@
+{
+  "contract": {
+    "hotel": {
+      "value": "The Lotus Pavilion",
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "The Lotus Pavilion"
+      }
+    },
+    "valid_from": {
+      "value": "2026-04-01",
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Contract validity: 1 April 2026 to 31 March 2027"
+      }
+    },
+    "valid_to": {
+      "value": "2027-03-31",
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Contract validity: 1 April 2026 to 31 March 2027"
+      }
+    },
+    "currency": {
+      "value": "INR",
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Net rates in INR per room per night (tax included)"
+      }
+    }
+  },
+  "rates": [
+    {
+      "start": "2026-04-01",
+      "end": "2026-06-30",
+      "room": "Ganga View Room",
+      "meal_plan": "EP",
+      "occupancy": "single",
+      "price": 3500,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Ganga View Room Single 3,500 3,900"
+      }
+    },
+    {
+      "start": "2026-04-01",
+      "end": "2026-06-30",
+      "room": "Ganga View Room",
+      "meal_plan": "CP",
+      "occupancy": "single",
+      "price": 3900,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Ganga View Room Single 3,500 3,900"
+      }
+    },
+    {
+      "start": "2026-04-01",
+      "end": "2026-06-30",
+      "room": "Ganga View Room",
+      "meal_plan": "EP",
+      "occupancy": "double",
+      "price": 4000,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Ganga View Room Double 4,000 4,800"
+      }
+    },
+    {
+      "start": "2026-04-01",
+      "end": "2026-06-30",
+      "room": "Ganga View Room",
+      "meal_plan": "CP",
+      "occupancy": "double",
+      "price": 4800,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Ganga View Room Double 4,000 4,800"
+      }
+    },
+    {
+      "start": "2026-04-01",
+      "end": "2026-06-30",
+      "room": "Heritage Suite",
+      "meal_plan": "EP",
+      "occupancy": "single",
+      "price": 6000,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Heritage Suite Single 6,000 6,400"
+      }
+    },
+    {
+      "start": "2026-04-01",
+      "end": "2026-06-30",
+      "room": "Heritage Suite",
+      "meal_plan": "CP",
+      "occupancy": "single",
+      "price": 6400,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Heritage Suite Single 6,000 6,400"
+      }
+    },
+    {
+      "start": "2026-04-01",
+      "end": "2026-06-30",
+      "room": "Heritage Suite",
+      "meal_plan": "EP",
+      "occupancy": "double",
+      "price": 6500,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Heritage Suite Double 6,500 7,300"
+      }
+    },
+    {
+      "start": "2026-04-01",
+      "end": "2026-06-30",
+      "room": "Heritage Suite",
+      "meal_plan": "CP",
+      "occupancy": "double",
+      "price": 7300,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Heritage Suite Double 6,500 7,300"
+      }
+    }
+  ],
+  "policies": {
+    "cancellation": [
+      {
+        "within_days": 10,
+        "charge_percent": 50,
+        "source": {
+          "file": "rate-letter.pdf",
+          "page": 2,
+          "quote": "Cancelled within 10 days of arrival: 50% of the booking value."
+        }
+      },
+      {
+        "within_days": 3,
+        "charge_percent": 100,
+        "source": {
+          "file": "rate-letter.pdf",
+          "page": 2,
+          "quote": "Cancelled within 3 days of arrival, or no-show: 100% of the booking value."
+        }
+      }
+    ],
+    "advance_payment": [
+      {
+        "percent": 25,
+        "when": "at_booking",
+        "days_before_arrival": null,
+        "source": {
+          "file": "rate-letter.pdf",
+          "page": 2,
+          "quote": "25% advance at the time of confirmation."
+        }
+      },
+      {
+        "percent": 75,
+        "when": "before_arrival",
+        "days_before_arrival": 7,
+        "source": {
+          "file": "rate-letter.pdf",
+          "page": 2,
+          "quote": "Balance payable 7 days before arrival."
+        }
+      }
+    ]
+  },
+  "questions": [
+    {
+      "about": "taxes_included",
+      "question": "Do the rates include tax?",
+      "why": "The rate table says 'tax included', but the note under it says rates are '+ GST'.",
+      "options": [
+        {
+          "label": "Tax included",
+          "loads": "taxes_included = true"
+        },
+        {
+          "label": "GST extra",
+          "loads": "taxes_included = false"
+        }
+      ],
+      "sources": [
+        {
+          "file": "rate-letter.pdf",
+          "page": 1,
+          "quote": "Net rates in INR per room per night (tax included)"
+        },
+        {
+          "file": "rate-letter.pdf",
+          "page": 1,
+          "quote": "All rates above are + GST at the applicable rate."
+        }
+      ]
+    },
+    {
+      "about": "rates",
+      "question": "Monsoon ends on 15 October but Winter starts on 10 October. Which dates are right?",
+      "why": "The two periods overlap for 6 days, so the price for those dates is unclear.",
+      "options": [
+        {
+          "label": "Monsoon ends 9 October",
+          "loads": "Monsoon rates 1 Jul to 9 Oct, Winter rates 10 Oct to 31 Mar"
+        },
+        {
+          "label": "Winter starts 16 October",
+          "loads": "Monsoon rates 1 Jul to 15 Oct, Winter rates 16 Oct to 31 Mar"
+        }
+      ],
+      "sources": [
+        {
+          "file": "rate-letter.pdf",
+          "page": 1,
+          "quote": "Monsoon: 1 July 2026 to 15 October 2026"
+        },
+        {
+          "file": "rate-letter.pdf",
+          "page": 1,
+          "quote": "Winter: 10 October 2026 to 31 March 2027"
+        }
+      ]
+    }
+  ],
+  "not_loaded": []
+}

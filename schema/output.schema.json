@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Hotel contract output",
+  "description": "One JSON file per contract folder. Leave out any value you ask a question about.",
+  "type": "object",
+  "required": ["contract", "rates", "policies", "questions", "not_loaded"],
+  "additionalProperties": false,
+  "properties": {
+    "contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "hotel": { "$ref": "#/$defs/textValue" },
+        "valid_from": { "$ref": "#/$defs/dateValue" },
+        "valid_to": { "$ref": "#/$defs/dateValue" },
+        "currency": {
+          "description": "ISO 4217 code, e.g. INR",
+          "$ref": "#/$defs/textValue"
+        },
+        "taxes_included": {
+          "description": "true if the printed prices already include tax (GST)",
+          "type": "object",
+          "required": ["value", "source"],
+          "additionalProperties": false,
+          "properties": { "value": { "type": "boolean" }, "source": { "$ref": "#/$defs/source" } }
+        }
+      }
+    },
+    "rates": {
+      "description": "One row per period, room, meal plan and occupancy. Price is per room per night (per extra bed per night for extra_bed).",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["start", "end", "room", "meal_plan", "occupancy", "price", "source"],
+        "additionalProperties": false,
+        "properties": {
+          "start": { "type": "string", "format": "date", "description": "First night, inclusive" },
+          "end": { "type": "string", "format": "date", "description": "Last night, inclusive" },
+          "room": { "type": "string", "description": "Room name as the contract writes it" },
+          "meal_plan": { "enum": ["EP", "CP", "MAP", "AP"] },
+          "occupancy": { "enum": ["single", "double", "extra_bed"] },
+          "price": { "type": "number", "exclusiveMinimum": 0 },
+          "source": { "$ref": "#/$defs/source" }
+        }
+      }
+    },
+    "policies": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cancellation": {
+          "description": "One tier per line: if cancelled within_days or fewer before arrival, charge_percent of the stay is charged.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["within_days", "charge_percent", "source"],
+            "additionalProperties": false,
+            "properties": {
+              "within_days": { "type": "integer", "minimum": 0 },
+              "charge_percent": { "type": "number", "minimum": 0, "maximum": 100 },
+              "source": { "$ref": "#/$defs/source" }
+            }
+          }
+        },
+        "advance_payment": {
+          "description": "One instalment per line; the percents add up to 100.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["percent", "when", "days_before_arrival", "source"],
+            "additionalProperties": false,
+            "properties": {
+              "percent": { "type": "number", "exclusiveMinimum": 0, "maximum": 100 },
+              "when": { "enum": ["at_booking", "before_arrival"] },
+              "days_before_arrival": {
+                "type": ["integer", "null"],
+                "description": "null when 'when' is at_booking"
+              },
+              "source": { "$ref": "#/$defs/source" }
+            }
+          }
+        }
+      }
+    },
+    "questions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["about", "question", "why", "options", "sources"],
+        "additionalProperties": false,
+        "properties": {
+          "about": {
+            "description": "Which part of the output this question decides",
+            "enum": ["hotel", "valid_from", "valid_to", "currency", "taxes_included", "rates", "cancellation", "advance_payment"]
+          },
+          "question": { "type": "string" },
+          "why": { "type": "string" },
+          "options": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 4,
+            "items": {
+              "type": "object",
+              "required": ["label", "loads"],
+              "additionalProperties": false,
+              "properties": { "label": { "type": "string" }, "loads": { "type": "string" } }
+            }
+          },
+          "sources": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/source" } }
+        }
+      }
+    },
+    "not_loaded": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["text", "reason", "source"],
+        "additionalProperties": false,
+        "properties": {
+          "text": { "type": "string", "description": "What the document says" },
+          "reason": { "type": "string", "description": "Why it was left out, in one line" },
+          "source": { "$ref": "#/$defs/source" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "source": {
+      "type": "object",
+      "required": ["file", "page", "quote"],
+      "additionalProperties": false,
+      "properties": {
+        "file": { "type": "string", "description": "File name inside the contract folder, e.g. rate-letter.pdf" },
+        "page": { "type": "integer", "minimum": 1 },
+        "quote": { "type": "string", "minLength": 1, "description": "The words the value was read from, e.g. the table row" }
+      }
+    },
+    "textValue": {
+      "type": "object",
+      "required": ["value", "source"],
+      "additionalProperties": false,
+      "properties": { "value": { "type": "string" }, "source": { "$ref": "#/$defs/source" } }
+    },
+    "dateValue": {
+      "type": "object",
+      "required": ["value", "source"],
+      "additionalProperties": false,
+      "properties": { "value": { "type": "string", "format": "date" }, "source": { "$ref": "#/$defs/source" } }
+    }
+  }
+}

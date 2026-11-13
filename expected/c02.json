@@ -1,0 +1,309 @@
+{
+  "contract": {
+    "hotel": {
+      "value": "Coral Sands Resort",
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Coral Sands Resort"
+      }
+    },
+    "valid_from": {
+      "value": "2026-10-01",
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Validity: 1 October 2026 to 30 September 2027"
+      }
+    },
+    "valid_to": {
+      "value": "2027-09-30",
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Validity: 1 October 2026 to 30 September 2027"
+      }
+    },
+    "currency": {
+      "value": "INR",
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Rates are in INR per room per night, exclusive of GST (GST extra as applicable)."
+      }
+    },
+    "taxes_included": {
+      "value": false,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Rates are in INR per room per night, exclusive of GST (GST extra as applicable)."
+      }
+    }
+  },
+  "rates": [
+    {
+      "start": "2026-10-01",
+      "end": "2027-01-15",
+      "room": "Garden Villa",
+      "meal_plan": "CP",
+      "occupancy": "single",
+      "price": 7000,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 2,
+        "quote": "Garden Villa CP 7,000 7,800"
+      }
+    },
+    {
+      "start": "2026-10-01",
+      "end": "2027-01-15",
+      "room": "Garden Villa",
+      "meal_plan": "CP",
+      "occupancy": "double",
+      "price": 7800,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 2,
+        "quote": "Garden Villa CP 7,000 7,800"
+      }
+    },
+    {
+      "start": "2026-10-01",
+      "end": "2027-01-15",
+      "room": "Garden Villa",
+      "meal_plan": "MAP",
+      "occupancy": "single",
+      "price": 8200,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 2,
+        "quote": "Garden Villa MAP 8,200 10,200"
+      }
+    },
+    {
+      "start": "2026-10-01",
+      "end": "2027-01-15",
+      "room": "Garden Villa",
+      "meal_plan": "MAP",
+      "occupancy": "double",
+      "price": 10200,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 2,
+        "quote": "Garden Villa MAP 8,200 10,200"
+      }
+    },
+    {
+      "start": "2026-10-01",
+      "end": "2027-01-15",
+      "room": "Sea View Villa",
+      "meal_plan": "CP",
+      "occupancy": "single",
+      "price": 9500,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 2,
+        "quote": "Sea View Villa CP 9,500 10,300"
+      }
+    },
+    {
+      "start": "2026-10-01",
+      "end": "2027-01-15",
+      "room": "Sea View Villa",
+      "meal_plan": "CP",
+      "occupancy": "double",
+      "price": 10300,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 2,
+        "quote": "Sea View Villa CP 9,500 10,300"
+      }
+    },
+    {
+      "start": "2026-10-01",
+      "end": "2027-01-15",
+      "room": "Sea View Villa",
+      "meal_plan": "MAP",
+      "occupancy": "single",
+      "price": 10700,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 2,
+        "quote": "Sea View Villa MAP 10,700 12,700"
+      }
+    },
+    {
+      "start": "2026-10-01",
+      "end": "2027-01-15",
+      "room": "Sea View Villa",
+      "meal_plan": "MAP",
+      "occupancy": "double",
+      "price": 12700,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 2,
+        "quote": "Sea View Villa MAP 10,700 12,700"
+      }
+    },
+    {
+      "start": "2027-01-16",
+      "end": "2027-09-30",
+      "room": "Garden Villa",
+      "meal_plan": "CP",
+      "occupancy": "single",
+      "price": 4800,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 2,
+        "quote": "Garden Villa CP 4,800 5,400"
+      }
+    },
+    {
+      "start": "2027-01-16",
+      "end": "2027-09-30",
+      "room": "Garden Villa",
+      "meal_plan": "CP",
+      "occupancy": "double",
+      "price": 5400,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 2,
+        "quote": "Garden Villa CP 4,800 5,400"
+      }
+    },
+    {
+      "start": "2027-01-16",
+      "end": "2027-09-30",
+      "room": "Garden Villa",
+      "meal_plan": "MAP",
+      "occupancy": "single",
+      "price": 6000,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 2,
+        "quote": "Garden Villa MAP 6,000 7,800"
+      }
+    },
+    {
+      "start": "2027-01-16",
+      "end": "2027-09-30",
+      "room": "Garden Villa",
+      "meal_plan": "MAP",
+      "occupancy": "double",
+      "price": 7800,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 2,
+        "quote": "Garden Villa MAP 6,000 7,800"
+      }
+    },
+    {
+      "start": "2027-01-16",
+      "end": "2027-09-30",
+      "room": "Sea View Villa",
+      "meal_plan": "CP",
+      "occupancy": "single",
+      "price": 6500,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 2,
+        "quote": "Sea View Villa CP 6,500 7,100"
+      }
+    },
+    {
+      "start": "2027-01-16",
+      "end": "2027-09-30",
+      "room": "Sea View Villa",
+      "meal_plan": "CP",
+      "occupancy": "double",
+      "price": 7100,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 2,
+        "quote": "Sea View Villa CP 6,500 7,100"
+      }
+    },
+    {
+      "start": "2027-01-16",
+      "end": "2027-09-30",
+      "room": "Sea View Villa",
+      "meal_plan": "MAP",
+      "occupancy": "single",
+      "price": 7700,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 2,
+        "quote": "Sea View Villa MAP 7,700 9,500"
+      }
+    },
+    {
+      "start": "2027-01-16",
+      "end": "2027-09-30",
+      "room": "Sea View Villa",
+      "meal_plan": "MAP",
+      "occupancy": "double",
+      "price": 9500,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 2,
+        "quote": "Sea View Villa MAP 7,700 9,500"
+      }
+    }
+  ],
+  "policies": {
+    "cancellation": [
+      {
+        "within_days": 30,
+        "charge_percent": 25,
+        "source": {
+          "file": "rate-letter.pdf",
+          "page": 1,
+          "quote": "21 to 30 days before arrival: 25%"
+        }
+      },
+      {
+        "within_days": 20,
+        "charge_percent": 50,
+        "source": {
+          "file": "rate-letter.pdf",
+          "page": 1,
+          "quote": "8 to 20 days before arrival: 50%"
+        }
+      },
+      {
+        "within_days": 7,
+        "charge_percent": 100,
+        "source": {
+          "file": "rate-letter.pdf",
+          "page": 1,
+          "quote": "0 to 7 days before arrival and no-show: 100%"
+        }
+      }
+    ],
+    "advance_payment": [
+      {
+        "percent": 100,
+        "when": "before_arrival",
+        "days_before_arrival": 15,
+        "source": {
+          "file": "rate-letter.pdf",
+          "page": 1,
+          "quote": "Full payment is due 15 days before arrival."
+        }
+      }
+    ]
+  },
+  "questions": [],
+  "not_loaded": [
+    {
+      "text": "The rates in this letter are for individual bookings. For groups of 10 rooms or more, a special group rate of INR 6,500 per room per night on MAP applies.",
+      "reason": "Group rate (10 rooms or more); this contract is for individual bookings.",
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "The rates in this letter are for individual bookings. For groups of 10 rooms or more, a special group rate of INR 6,500 per room per night on MAP applies."
+      }
+    }
+  ]
+}

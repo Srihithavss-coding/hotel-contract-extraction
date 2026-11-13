@@ -1,0 +1,792 @@
+{
+  "contract": {
+    "hotel": {
+      "value": "Misty Ridge Retreat",
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Misty Ridge Retreat"
+      }
+    },
+    "valid_from": {
+      "value": "2026-04-01",
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "These rates are valid from 1 April 2026 to 31 March 2027."
+      }
+    },
+    "valid_to": {
+      "value": "2027-03-31",
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "These rates are valid from 1 April 2026 to 31 March 2027."
+      }
+    },
+    "currency": {
+      "value": "INR",
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Rates are in INR per room per night. GST at 12% is extra."
+      }
+    },
+    "taxes_included": {
+      "value": false,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Rates are in INR per room per night. GST at 12% is extra."
+      }
+    }
+  },
+  "rates": [
+    {
+      "start": "2026-04-01",
+      "end": "2026-06-30",
+      "room": "Plantation View Room",
+      "meal_plan": "CP",
+      "occupancy": "single",
+      "price": 5200,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Plantation View Room Single 5,200 6,000 6,800"
+      }
+    },
+    {
+      "start": "2026-04-01",
+      "end": "2026-06-30",
+      "room": "Plantation View Room",
+      "meal_plan": "MAP",
+      "occupancy": "single",
+      "price": 6000,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Plantation View Room Single 5,200 6,000 6,800"
+      }
+    },
+    {
+      "start": "2026-04-01",
+      "end": "2026-06-30",
+      "room": "Plantation View Room",
+      "meal_plan": "AP",
+      "occupancy": "single",
+      "price": 6800,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Plantation View Room Single 5,200 6,000 6,800"
+      }
+    },
+    {
+      "start": "2026-04-01",
+      "end": "2026-06-30",
+      "room": "Plantation View Room",
+      "meal_plan": "CP",
+      "occupancy": "double",
+      "price": 5800,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Plantation View Room Double 5,800 7,400 8,800"
+      }
+    },
+    {
+      "start": "2026-04-01",
+      "end": "2026-06-30",
+      "room": "Plantation View Room",
+      "meal_plan": "MAP",
+      "occupancy": "double",
+      "price": 7400,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Plantation View Room Double 5,800 7,400 8,800"
+      }
+    },
+    {
+      "start": "2026-04-01",
+      "end": "2026-06-30",
+      "room": "Plantation View Room",
+      "meal_plan": "AP",
+      "occupancy": "double",
+      "price": 8800,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Plantation View Room Double 5,800 7,400 8,800"
+      }
+    },
+    {
+      "start": "2026-04-01",
+      "end": "2026-06-30",
+      "room": "Ridge Cottage",
+      "meal_plan": "CP",
+      "occupancy": "single",
+      "price": 6900,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Ridge Cottage Single 6,900 7,700 8,500"
+      }
+    },
+    {
+      "start": "2026-04-01",
+      "end": "2026-06-30",
+      "room": "Ridge Cottage",
+      "meal_plan": "MAP",
+      "occupancy": "single",
+      "price": 7700,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Ridge Cottage Single 6,900 7,700 8,500"
+      }
+    },
+    {
+      "start": "2026-04-01",
+      "end": "2026-06-30",
+      "room": "Ridge Cottage",
+      "meal_plan": "AP",
+      "occupancy": "single",
+      "price": 8500,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Ridge Cottage Single 6,900 7,700 8,500"
+      }
+    },
+    {
+      "start": "2026-04-01",
+      "end": "2026-06-30",
+      "room": "Ridge Cottage",
+      "meal_plan": "CP",
+      "occupancy": "double",
+      "price": 7500,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Ridge Cottage Double 7,500 9,100 10,500"
+      }
+    },
+    {
+      "start": "2026-04-01",
+      "end": "2026-06-30",
+      "room": "Ridge Cottage",
+      "meal_plan": "MAP",
+      "occupancy": "double",
+      "price": 9100,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Ridge Cottage Double 7,500 9,100 10,500"
+      }
+    },
+    {
+      "start": "2026-04-01",
+      "end": "2026-06-30",
+      "room": "Ridge Cottage",
+      "meal_plan": "AP",
+      "occupancy": "double",
+      "price": 10500,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Ridge Cottage Double 7,500 9,100 10,500"
+      }
+    },
+    {
+      "start": "2026-04-01",
+      "end": "2026-06-30",
+      "room": "Plantation View Room",
+      "meal_plan": "CP",
+      "occupancy": "extra_bed",
+      "price": 1800,
+      "source": {
+        "file": "email.pdf",
+        "page": 1,
+        "quote": "Extra bed for a third guest, all periods: INR 1,800 per night on CP, INR 2,400 on MAP and INR 3,000 on AP."
+      }
+    },
+    {
+      "start": "2026-04-01",
+      "end": "2026-06-30",
+      "room": "Plantation View Room",
+      "meal_plan": "MAP",
+      "occupancy": "extra_bed",
+      "price": 2400,
+      "source": {
+        "file": "email.pdf",
+        "page": 1,
+        "quote": "Extra bed for a third guest, all periods: INR 1,800 per night on CP, INR 2,400 on MAP and INR 3,000 on AP."
+      }
+    },
+    {
+      "start": "2026-04-01",
+      "end": "2026-06-30",
+      "room": "Plantation View Room",
+      "meal_plan": "AP",
+      "occupancy": "extra_bed",
+      "price": 3000,
+      "source": {
+        "file": "email.pdf",
+        "page": 1,
+        "quote": "Extra bed for a third guest, all periods: INR 1,800 per night on CP, INR 2,400 on MAP and INR 3,000 on AP."
+      }
+    },
+    {
+      "start": "2026-04-01",
+      "end": "2026-06-30",
+      "room": "Ridge Cottage",
+      "meal_plan": "CP",
+      "occupancy": "extra_bed",
+      "price": 1800,
+      "source": {
+        "file": "email.pdf",
+        "page": 1,
+        "quote": "Extra bed for a third guest, all periods: INR 1,800 per night on CP, INR 2,400 on MAP and INR 3,000 on AP."
+      }
+    },
+    {
+      "start": "2026-04-01",
+      "end": "2026-06-30",
+      "room": "Ridge Cottage",
+      "meal_plan": "MAP",
+      "occupancy": "extra_bed",
+      "price": 2400,
+      "source": {
+        "file": "email.pdf",
+        "page": 1,
+        "quote": "Extra bed for a third guest, all periods: INR 1,800 per night on CP, INR 2,400 on MAP and INR 3,000 on AP."
+      }
+    },
+    {
+      "start": "2026-04-01",
+      "end": "2026-06-30",
+      "room": "Ridge Cottage",
+      "meal_plan": "AP",
+      "occupancy": "extra_bed",
+      "price": 3000,
+      "source": {
+        "file": "email.pdf",
+        "page": 1,
+        "quote": "Extra bed for a third guest, all periods: INR 1,800 per night on CP, INR 2,400 on MAP and INR 3,000 on AP."
+      }
+    },
+    {
+      "start": "2026-07-01",
+      "end": "2026-09-30",
+      "room": "Plantation View Room",
+      "meal_plan": "CP",
+      "occupancy": "single",
+      "price": 3900,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Plantation View Room Single 3,900 4,700 5,500"
+      }
+    },
+    {
+      "start": "2026-07-01",
+      "end": "2026-09-30",
+      "room": "Plantation View Room",
+      "meal_plan": "MAP",
+      "occupancy": "single",
+      "price": 4700,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Plantation View Room Single 3,900 4,700 5,500"
+      }
+    },
+    {
+      "start": "2026-07-01",
+      "end": "2026-09-30",
+      "room": "Plantation View Room",
+      "meal_plan": "AP",
+      "occupancy": "single",
+      "price": 5500,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Plantation View Room Single 3,900 4,700 5,500"
+      }
+    },
+    {
+      "start": "2026-07-01",
+      "end": "2026-09-30",
+      "room": "Plantation View Room",
+      "meal_plan": "CP",
+      "occupancy": "double",
+      "price": 4400,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Plantation View Room Double 4,400 6,000 7,400"
+      }
+    },
+    {
+      "start": "2026-07-01",
+      "end": "2026-09-30",
+      "room": "Plantation View Room",
+      "meal_plan": "MAP",
+      "occupancy": "double",
+      "price": 6000,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Plantation View Room Double 4,400 6,000 7,400"
+      }
+    },
+    {
+      "start": "2026-07-01",
+      "end": "2026-09-30",
+      "room": "Plantation View Room",
+      "meal_plan": "AP",
+      "occupancy": "double",
+      "price": 7400,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Plantation View Room Double 4,400 6,000 7,400"
+      }
+    },
+    {
+      "start": "2026-07-01",
+      "end": "2026-09-30",
+      "room": "Ridge Cottage",
+      "meal_plan": "CP",
+      "occupancy": "single",
+      "price": 5200,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Ridge Cottage Single 5,200 6,000 6,800"
+      }
+    },
+    {
+      "start": "2026-07-01",
+      "end": "2026-09-30",
+      "room": "Ridge Cottage",
+      "meal_plan": "MAP",
+      "occupancy": "single",
+      "price": 6000,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Ridge Cottage Single 5,200 6,000 6,800"
+      }
+    },
+    {
+      "start": "2026-07-01",
+      "end": "2026-09-30",
+      "room": "Ridge Cottage",
+      "meal_plan": "AP",
+      "occupancy": "single",
+      "price": 6800,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Ridge Cottage Single 5,200 6,000 6,800"
+      }
+    },
+    {
+      "start": "2026-07-01",
+      "end": "2026-09-30",
+      "room": "Ridge Cottage",
+      "meal_plan": "CP",
+      "occupancy": "double",
+      "price": 5700,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Ridge Cottage Double 5,700 7,300 8,700"
+      }
+    },
+    {
+      "start": "2026-07-01",
+      "end": "2026-09-30",
+      "room": "Ridge Cottage",
+      "meal_plan": "MAP",
+      "occupancy": "double",
+      "price": 7300,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Ridge Cottage Double 5,700 7,300 8,700"
+      }
+    },
+    {
+      "start": "2026-07-01",
+      "end": "2026-09-30",
+      "room": "Ridge Cottage",
+      "meal_plan": "AP",
+      "occupancy": "double",
+      "price": 8700,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Ridge Cottage Double 5,700 7,300 8,700"
+      }
+    },
+    {
+      "start": "2026-07-01",
+      "end": "2026-09-30",
+      "room": "Plantation View Room",
+      "meal_plan": "CP",
+      "occupancy": "extra_bed",
+      "price": 1800,
+      "source": {
+        "file": "email.pdf",
+        "page": 1,
+        "quote": "Extra bed for a third guest, all periods: INR 1,800 per night on CP, INR 2,400 on MAP and INR 3,000 on AP."
+      }
+    },
+    {
+      "start": "2026-07-01",
+      "end": "2026-09-30",
+      "room": "Plantation View Room",
+      "meal_plan": "MAP",
+      "occupancy": "extra_bed",
+      "price": 2400,
+      "source": {
+        "file": "email.pdf",
+        "page": 1,
+        "quote": "Extra bed for a third guest, all periods: INR 1,800 per night on CP, INR 2,400 on MAP and INR 3,000 on AP."
+      }
+    },
+    {
+      "start": "2026-07-01",
+      "end": "2026-09-30",
+      "room": "Plantation View Room",
+      "meal_plan": "AP",
+      "occupancy": "extra_bed",
+      "price": 3000,
+      "source": {
+        "file": "email.pdf",
+        "page": 1,
+        "quote": "Extra bed for a third guest, all periods: INR 1,800 per night on CP, INR 2,400 on MAP and INR 3,000 on AP."
+      }
+    },
+    {
+      "start": "2026-07-01",
+      "end": "2026-09-30",
+      "room": "Ridge Cottage",
+      "meal_plan": "CP",
+      "occupancy": "extra_bed",
+      "price": 1800,
+      "source": {
+        "file": "email.pdf",
+        "page": 1,
+        "quote": "Extra bed for a third guest, all periods: INR 1,800 per night on CP, INR 2,400 on MAP and INR 3,000 on AP."
+      }
+    },
+    {
+      "start": "2026-07-01",
+      "end": "2026-09-30",
+      "room": "Ridge Cottage",
+      "meal_plan": "MAP",
+      "occupancy": "extra_bed",
+      "price": 2400,
+      "source": {
+        "file": "email.pdf",
+        "page": 1,
+        "quote": "Extra bed for a third guest, all periods: INR 1,800 per night on CP, INR 2,400 on MAP and INR 3,000 on AP."
+      }
+    },
+    {
+      "start": "2026-07-01",
+      "end": "2026-09-30",
+      "room": "Ridge Cottage",
+      "meal_plan": "AP",
+      "occupancy": "extra_bed",
+      "price": 3000,
+      "source": {
+        "file": "email.pdf",
+        "page": 1,
+        "quote": "Extra bed for a third guest, all periods: INR 1,800 per night on CP, INR 2,400 on MAP and INR 3,000 on AP."
+      }
+    },
+    {
+      "start": "2026-10-01",
+      "end": "2027-03-31",
+      "room": "Plantation View Room",
+      "meal_plan": "CP",
+      "occupancy": "single",
+      "price": 4800,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Plantation View Room Single 4,800 5,600 6,400"
+      }
+    },
+    {
+      "start": "2026-10-01",
+      "end": "2027-03-31",
+      "room": "Plantation View Room",
+      "meal_plan": "MAP",
+      "occupancy": "single",
+      "price": 5600,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Plantation View Room Single 4,800 5,600 6,400"
+      }
+    },
+    {
+      "start": "2026-10-01",
+      "end": "2027-03-31",
+      "room": "Plantation View Room",
+      "meal_plan": "AP",
+      "occupancy": "single",
+      "price": 6400,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Plantation View Room Single 4,800 5,600 6,400"
+      }
+    },
+    {
+      "start": "2026-10-01",
+      "end": "2027-03-31",
+      "room": "Plantation View Room",
+      "meal_plan": "CP",
+      "occupancy": "double",
+      "price": 5400,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Plantation View Room Double 5,400 7,000 8,400"
+      }
+    },
+    {
+      "start": "2026-10-01",
+      "end": "2027-03-31",
+      "room": "Plantation View Room",
+      "meal_plan": "MAP",
+      "occupancy": "double",
+      "price": 7000,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Plantation View Room Double 5,400 7,000 8,400"
+      }
+    },
+    {
+      "start": "2026-10-01",
+      "end": "2027-03-31",
+      "room": "Plantation View Room",
+      "meal_plan": "AP",
+      "occupancy": "double",
+      "price": 8400,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Plantation View Room Double 5,400 7,000 8,400"
+      }
+    },
+    {
+      "start": "2026-10-01",
+      "end": "2027-03-31",
+      "room": "Ridge Cottage",
+      "meal_plan": "CP",
+      "occupancy": "single",
+      "price": 6400,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Ridge Cottage Single 6,400 7,200 8,000"
+      }
+    },
+    {
+      "start": "2026-10-01",
+      "end": "2027-03-31",
+      "room": "Ridge Cottage",
+      "meal_plan": "MAP",
+      "occupancy": "single",
+      "price": 7200,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Ridge Cottage Single 6,400 7,200 8,000"
+      }
+    },
+    {
+      "start": "2026-10-01",
+      "end": "2027-03-31",
+      "room": "Ridge Cottage",
+      "meal_plan": "AP",
+      "occupancy": "single",
+      "price": 8000,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Ridge Cottage Single 6,400 7,200 8,000"
+      }
+    },
+    {
+      "start": "2026-10-01",
+      "end": "2027-03-31",
+      "room": "Ridge Cottage",
+      "meal_plan": "CP",
+      "occupancy": "double",
+      "price": 7000,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Ridge Cottage Double 7,000 8,600 10,000"
+      }
+    },
+    {
+      "start": "2026-10-01",
+      "end": "2027-03-31",
+      "room": "Ridge Cottage",
+      "meal_plan": "MAP",
+      "occupancy": "double",
+      "price": 8600,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Ridge Cottage Double 7,000 8,600 10,000"
+      }
+    },
+    {
+      "start": "2026-10-01",
+      "end": "2027-03-31",
+      "room": "Ridge Cottage",
+      "meal_plan": "AP",
+      "occupancy": "double",
+      "price": 10000,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Ridge Cottage Double 7,000 8,600 10,000"
+      }
+    },
+    {
+      "start": "2026-10-01",
+      "end": "2027-03-31",
+      "room": "Plantation View Room",
+      "meal_plan": "CP",
+      "occupancy": "extra_bed",
+      "price": 1800,
+      "source": {
+        "file": "email.pdf",
+        "page": 1,
+        "quote": "Extra bed for a third guest, all periods: INR 1,800 per night on CP, INR 2,400 on MAP and INR 3,000 on AP."
+      }
+    },
+    {
+      "start": "2026-10-01",
+      "end": "2027-03-31",
+      "room": "Plantation View Room",
+      "meal_plan": "MAP",
+      "occupancy": "extra_bed",
+      "price": 2400,
+      "source": {
+        "file": "email.pdf",
+        "page": 1,
+        "quote": "Extra bed for a third guest, all periods: INR 1,800 per night on CP, INR 2,400 on MAP and INR 3,000 on AP."
+      }
+    },
+    {
+      "start": "2026-10-01",
+      "end": "2027-03-31",
+      "room": "Plantation View Room",
+      "meal_plan": "AP",
+      "occupancy": "extra_bed",
+      "price": 3000,
+      "source": {
+        "file": "email.pdf",
+        "page": 1,
+        "quote": "Extra bed for a third guest, all periods: INR 1,800 per night on CP, INR 2,400 on MAP and INR 3,000 on AP."
+      }
+    },
+    {
+      "start": "2026-10-01",
+      "end": "2027-03-31",
+      "room": "Ridge Cottage",
+      "meal_plan": "CP",
+      "occupancy": "extra_bed",
+      "price": 1800,
+      "source": {
+        "file": "email.pdf",
+        "page": 1,
+        "quote": "Extra bed for a third guest, all periods: INR 1,800 per night on CP, INR 2,400 on MAP and INR 3,000 on AP."
+      }
+    },
+    {
+      "start": "2026-10-01",
+      "end": "2027-03-31",
+      "room": "Ridge Cottage",
+      "meal_plan": "MAP",
+      "occupancy": "extra_bed",
+      "price": 2400,
+      "source": {
+        "file": "email.pdf",
+        "page": 1,
+        "quote": "Extra bed for a third guest, all periods: INR 1,800 per night on CP, INR 2,400 on MAP and INR 3,000 on AP."
+      }
+    },
+    {
+      "start": "2026-10-01",
+      "end": "2027-03-31",
+      "room": "Ridge Cottage",
+      "meal_plan": "AP",
+      "occupancy": "extra_bed",
+      "price": 3000,
+      "source": {
+        "file": "email.pdf",
+        "page": 1,
+        "quote": "Extra bed for a third guest, all periods: INR 1,800 per night on CP, INR 2,400 on MAP and INR 3,000 on AP."
+      }
+    }
+  ],
+  "policies": {
+    "advance_payment": [
+      {
+        "percent": 100,
+        "when": "before_arrival",
+        "days_before_arrival": 30,
+        "source": {
+          "file": "rate-letter.pdf",
+          "page": 2,
+          "quote": "Payment: 100% advance, 30 days before arrival."
+        }
+      }
+    ]
+  },
+  "questions": [
+    {
+      "about": "cancellation",
+      "question": "Which cancellation window applies: 100% within 21 days or within 30 days of arrival?",
+      "why": "The rate letter says 21 days; the hotel's email says 30 days.",
+      "options": [
+        {
+          "label": "21 days (rate letter)",
+          "loads": "100% charge if cancelled within 21 days of arrival"
+        },
+        {
+          "label": "30 days (email)",
+          "loads": "100% charge if cancelled within 30 days of arrival"
+        }
+      ],
+      "sources": [
+        {
+          "file": "rate-letter.pdf",
+          "page": 2,
+          "quote": "Cancellation: 100% retention for cancellations within 21 days of arrival."
+        },
+        {
+          "file": "email.pdf",
+          "page": 1,
+          "quote": "Cancellation: 100% charge if cancelled within 30 days of arrival."
+        }
+      ]
+    }
+  ],
+  "not_loaded": []
+}

@@ -1,0 +1,414 @@
+{
+  "contract": {
+    "hotel": {
+      "value": "Hotel Saffron Courtyard",
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Hotel Saffron Courtyard"
+      }
+    },
+    "valid_from": {
+      "value": "2026-04-01",
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Contract period: 1 April 2026 to 31 March 2027"
+      }
+    },
+    "valid_to": {
+      "value": "2027-03-31",
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Contract period: 1 April 2026 to 31 March 2027"
+      }
+    },
+    "currency": {
+      "value": "INR",
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "All rates are in INR per room per night and are inclusive of GST."
+      }
+    },
+    "taxes_included": {
+      "value": true,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "All rates are in INR per room per night and are inclusive of GST."
+      }
+    }
+  },
+  "rates": [
+    {
+      "start": "2026-04-01",
+      "end": "2026-09-30",
+      "room": "Heritage Room",
+      "meal_plan": "EP",
+      "occupancy": "single",
+      "price": 3200,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Heritage Room 3,200 3,600 4,400"
+      }
+    },
+    {
+      "start": "2026-04-01",
+      "end": "2026-09-30",
+      "room": "Heritage Room",
+      "meal_plan": "EP",
+      "occupancy": "double",
+      "price": 3200,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Heritage Room 3,200 3,600 4,400"
+      }
+    },
+    {
+      "start": "2026-04-01",
+      "end": "2026-09-30",
+      "room": "Heritage Room",
+      "meal_plan": "CP",
+      "occupancy": "single",
+      "price": 3600,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Heritage Room 3,200 3,600 4,400"
+      }
+    },
+    {
+      "start": "2026-04-01",
+      "end": "2026-09-30",
+      "room": "Heritage Room",
+      "meal_plan": "CP",
+      "occupancy": "double",
+      "price": 3600,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Heritage Room 3,200 3,600 4,400"
+      }
+    },
+    {
+      "start": "2026-04-01",
+      "end": "2026-09-30",
+      "room": "Heritage Room",
+      "meal_plan": "MAP",
+      "occupancy": "single",
+      "price": 4400,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Heritage Room 3,200 3,600 4,400"
+      }
+    },
+    {
+      "start": "2026-04-01",
+      "end": "2026-09-30",
+      "room": "Heritage Room",
+      "meal_plan": "MAP",
+      "occupancy": "double",
+      "price": 4400,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Heritage Room 3,200 3,600 4,400"
+      }
+    },
+    {
+      "start": "2026-04-01",
+      "end": "2026-09-30",
+      "room": "Courtyard Suite",
+      "meal_plan": "EP",
+      "occupancy": "single",
+      "price": 5800,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Courtyard Suite 5,800 6,200 7,000"
+      }
+    },
+    {
+      "start": "2026-04-01",
+      "end": "2026-09-30",
+      "room": "Courtyard Suite",
+      "meal_plan": "EP",
+      "occupancy": "double",
+      "price": 5800,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Courtyard Suite 5,800 6,200 7,000"
+      }
+    },
+    {
+      "start": "2026-04-01",
+      "end": "2026-09-30",
+      "room": "Courtyard Suite",
+      "meal_plan": "CP",
+      "occupancy": "single",
+      "price": 6200,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Courtyard Suite 5,800 6,200 7,000"
+      }
+    },
+    {
+      "start": "2026-04-01",
+      "end": "2026-09-30",
+      "room": "Courtyard Suite",
+      "meal_plan": "CP",
+      "occupancy": "double",
+      "price": 6200,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Courtyard Suite 5,800 6,200 7,000"
+      }
+    },
+    {
+      "start": "2026-04-01",
+      "end": "2026-09-30",
+      "room": "Courtyard Suite",
+      "meal_plan": "MAP",
+      "occupancy": "single",
+      "price": 7000,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Courtyard Suite 5,800 6,200 7,000"
+      }
+    },
+    {
+      "start": "2026-04-01",
+      "end": "2026-09-30",
+      "room": "Courtyard Suite",
+      "meal_plan": "MAP",
+      "occupancy": "double",
+      "price": 7000,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Courtyard Suite 5,800 6,200 7,000"
+      }
+    },
+    {
+      "start": "2026-10-01",
+      "end": "2027-03-31",
+      "room": "Heritage Room",
+      "meal_plan": "EP",
+      "occupancy": "single",
+      "price": 4500,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Heritage Room 4,500 4,900 5,700"
+      }
+    },
+    {
+      "start": "2026-10-01",
+      "end": "2027-03-31",
+      "room": "Heritage Room",
+      "meal_plan": "EP",
+      "occupancy": "double",
+      "price": 4500,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Heritage Room 4,500 4,900 5,700"
+      }
+    },
+    {
+      "start": "2026-10-01",
+      "end": "2027-03-31",
+      "room": "Heritage Room",
+      "meal_plan": "CP",
+      "occupancy": "single",
+      "price": 4900,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Heritage Room 4,500 4,900 5,700"
+      }
+    },
+    {
+      "start": "2026-10-01",
+      "end": "2027-03-31",
+      "room": "Heritage Room",
+      "meal_plan": "CP",
+      "occupancy": "double",
+      "price": 4900,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Heritage Room 4,500 4,900 5,700"
+      }
+    },
+    {
+      "start": "2026-10-01",
+      "end": "2027-03-31",
+      "room": "Heritage Room",
+      "meal_plan": "MAP",
+      "occupancy": "single",
+      "price": 5700,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Heritage Room 4,500 4,900 5,700"
+      }
+    },
+    {
+      "start": "2026-10-01",
+      "end": "2027-03-31",
+      "room": "Heritage Room",
+      "meal_plan": "MAP",
+      "occupancy": "double",
+      "price": 5700,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Heritage Room 4,500 4,900 5,700"
+      }
+    },
+    {
+      "start": "2026-10-01",
+      "end": "2027-03-31",
+      "room": "Courtyard Suite",
+      "meal_plan": "EP",
+      "occupancy": "single",
+      "price": 7500,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Courtyard Suite 7,500 7,900 8,700"
+      }
+    },
+    {
+      "start": "2026-10-01",
+      "end": "2027-03-31",
+      "room": "Courtyard Suite",
+      "meal_plan": "EP",
+      "occupancy": "double",
+      "price": 7500,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Courtyard Suite 7,500 7,900 8,700"
+      }
+    },
+    {
+      "start": "2026-10-01",
+      "end": "2027-03-31",
+      "room": "Courtyard Suite",
+      "meal_plan": "CP",
+      "occupancy": "single",
+      "price": 7900,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Courtyard Suite 7,500 7,900 8,700"
+      }
+    },
+    {
+      "start": "2026-10-01",
+      "end": "2027-03-31",
+      "room": "Courtyard Suite",
+      "meal_plan": "CP",
+      "occupancy": "double",
+      "price": 7900,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Courtyard Suite 7,500 7,900 8,700"
+      }
+    },
+    {
+      "start": "2026-10-01",
+      "end": "2027-03-31",
+      "room": "Courtyard Suite",
+      "meal_plan": "MAP",
+      "occupancy": "single",
+      "price": 8700,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Courtyard Suite 7,500 7,900 8,700"
+      }
+    },
+    {
+      "start": "2026-10-01",
+      "end": "2027-03-31",
+      "room": "Courtyard Suite",
+      "meal_plan": "MAP",
+      "occupancy": "double",
+      "price": 8700,
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 1,
+        "quote": "Courtyard Suite 7,500 7,900 8,700"
+      }
+    }
+  ],
+  "policies": {
+    "cancellation": [
+      {
+        "within_days": 14,
+        "charge_percent": 50,
+        "source": {
+          "file": "rate-letter.pdf",
+          "page": 2,
+          "quote": "Cancelled within 14 days of arrival: 50% of the total stay."
+        }
+      },
+      {
+        "within_days": 7,
+        "charge_percent": 100,
+        "source": {
+          "file": "rate-letter.pdf",
+          "page": 2,
+          "quote": "Cancelled within 7 days of arrival, or no-show: 100% of the total stay."
+        }
+      }
+    ],
+    "advance_payment": [
+      {
+        "percent": 50,
+        "when": "at_booking",
+        "days_before_arrival": null,
+        "source": {
+          "file": "rate-letter.pdf",
+          "page": 2,
+          "quote": "50% of the booking value is payable at the time of confirmation."
+        }
+      },
+      {
+        "percent": 50,
+        "when": "before_arrival",
+        "days_before_arrival": 21,
+        "source": {
+          "file": "rate-letter.pdf",
+          "page": 2,
+          "quote": "The balance 50% is payable 21 days before arrival."
+        }
+      }
+    ]
+  },
+  "questions": [],
+  "not_loaded": [
+    {
+      "text": "A surcharge applies during the festive season; details will be shared separately.",
+      "reason": "No dates or amount are given, so there is nothing to load.",
+      "source": {
+        "file": "rate-letter.pdf",
+        "page": 2,
+        "quote": "A surcharge applies during the festive season; details will be shared separately."
+      }
+    }
+  ]
+}
