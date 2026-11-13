@@ -1,27 +1,52 @@
 # Hotel Contract Analyser
 
-This project reads one hotel-contract folder, extracts source-backed evidence
-from its PDFs, validates each candidate against the cited page, reconciles only
-verified candidates, and emits JSON matching the unchanged company schema in
-`schema/output.schema.json`.
+This command-line project reads the PDFs for one hotel contract and prepares JSON for a booking system. It aims to load only details supported by the documents. When documents disagree or leave a material detail unclear, it records a question for the loader instead of guessing.
 
-The five sample folders are c01 through c05. `ASSIGNMENT.pdf` is the source of
-the assignment requirements. `expected/` contains comparison fixtures; it is
-not used as input to production extraction or reconciliation.
+## How it works
 
-## Requirements and installation
+```text
+PDFs -> read text / OCR -> AI suggests values and sources
+     -> Python checks the evidence -> rules build the JSON -> schema validation
+```
 
-- Python 3.9 or newer.
-- Tesseract OCR installed and available on `PATH` for scanned PDFs. If it is
-  installed elsewhere on Windows, set `TESSERACT_CMD` and, if needed,
-  `TESSDATA_DIR` in `.env`.
-- An OpenAI API key and a model that supports the structured extraction request.
-  No API key or live API call is needed for offline tests.
+The AI suggests possible contract details. Python checks whether each suggestion is supported by the cited file, page and quotation, then applies the business rules. Only verified values are loaded. This is the main design choice: a plausible answer is not enough unless the source supports it.
 
-In PowerShell, from the project root:
+## What the output contains
+
+The output follows the supplied schema in `schema/output.schema.json`:
+
+- `contract`: hotel name, validity dates, currency and tax status;
+- `rates`: period, room, meal plan, occupancy and price;
+- `policies`: cancellation charges and advance-payment instalments;
+- `questions`: unresolved decisions, with options and cited sources;
+- `not_loaded`: relevant terms that cannot safely be loaded, with a reason and source.
+
+Each loaded contract value, rate and policy includes the source filename, page number and supporting words from the document.
+
+The samples also exercise scanned pages, prices in a separate email, single/double price expansion, extra-bed rates, conflicting policies, overlapping date periods, conflicting tax statements, group rates and rack rates.
+
+## Project files
+
+| File or folder | Purpose |
+| --- | --- |
+| `analyse.py` | Runs the pipeline for one contract folder. |
+| `ingest.py` | Reads PDF pages and uses Tesseract for scanned pages. |
+| `extract.py` | Requests structured candidate details and source quotations. |
+| `reconcile.py` | Checks evidence, applies rules and builds final JSON. |
+| `schema/` | Supplied output schema. |
+| `contracts/` | Five sample input folders. |
+| `expected/` | Reference JSON files for comparison, not production input. |
+| `evaluate.py` | Compares generated JSON with the reference files. |
+| `tests/` | Offline tests and opt-in live evaluation tests. |
+
+## Setup
+
+Development was carried out on Windows with Python 3.13.9. Use Python 3.10 or newer. Tesseract OCR must be installed for scanned pages, with English language data available. If needed, set `TESSERACT_CMD` and `TESSDATA_DIR` in `.env`.
+
+In PowerShell, from the project folder:
 
 ```powershell
-py -3.9 -m venv .venv
+python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install -r .\requirements.txt
@@ -29,54 +54,43 @@ Copy-Item .\.env.example .\.env
 notepad .\.env
 ```
 
-Set `OPENAI_API_KEY`, `OPENAI_MODEL`, and explicit pricing fields in `.env`.
-`OPENAI_PRICING_MODEL` must exactly match `OPENAI_MODEL`. Set
-`OPENAI_INPUT_COST_PER_MILLION` and `OPENAI_OUTPUT_COST_PER_MILLION` to the
-current provider prices in USD per million tokens. There are deliberately no
-implicit reference prices: an absent, malformed, or mismatched price
-configuration fails before a model request.
+Set `GEMINI_API_KEY` from Google AI Studio, `GEMINI_MODEL`,
+`GEMINI_PRICING_MODEL`, `GEMINI_INPUT_COST_PER_MILLION` and
+`GEMINI_OUTPUT_COST_PER_MILLION` in `.env`. The pricing model must exactly
+match the selected Gemini model, and the two prices must be its current USD
+prices per million tokens. Keep `.env` private; only `.env.example` belongs in
+Git. The SDK request is configured for one attempt; rate-limit and network
+failures are reported rather than automatically retried.
 
-The CLI applies a 60-second per-contract runtime budget, limits each extraction
-request to 30 pages and 120,000 prompt/evidence characters, and uses an 8,192
-token maximum completion. A conservative preflight estimate includes a
-UTF-8-byte upper bound for input tokens, the structured response schema, a
-request-wrapper allowance, and the maximum output tokens. Requests estimated
-above $0.15 are rejected before submission. Where provider token usage is
-returned, the application reports a separate cost estimate based on that usage
-and the configured rates. These are estimates, not provider billing guarantees.
+The Gemini integration has not been validated with a live Google AI Studio
+request. Passing offline tests does not establish live extraction accuracy.
 
-## Run the CLI
+The program checks its estimated request cost before calling the model and stops if the estimate exceeds USD 0.15. Reported cost is an estimate, not a provider billing guarantee. The CLI also enforces the 60-second per-contract limit.
 
-Pass one contract directory as the required positional argument. Quote paths
-that contain spaces:
+## Run a contract
 
-```powershell
-python .\analyse.py ".\contracts\c01"
-```
-
-On success, stdout contains only the complete, schema-validated JSON object.
-Progress, warnings, runtime, token usage, cost estimates, and errors go to
-stderr. A failure exits non-zero and does not emit partial JSON.
-
-To save the two streams separately:
+Create the output folder, then run one contract at a time. JSON is written to the `.json` file; progress and diagnostics go to the `.log` file:
 
 ```powershell
 New-Item -ItemType Directory -Force .\out | Out-Null
-python .\analyse.py ".\contracts\c01" 1> ".\out\c01.json" 2> ".\out\c01.log"
+python .\analyse.py .\contracts\c01 1> .\out\c01.json 2> .\out\c01.log
 ```
 
-Run the evaluator after generating the output files:
+Repeat for `c02` through `c05`, changing the input folder and output filename. Only keep a JSON file when the command finishes successfully.
+
+## Evaluate the five samples
+
+After all five real output files have been generated, run:
 
 ```powershell
 python .\evaluate.py .\out .\expected
 ```
 
-Do not treat expected fixtures as extracted outputs. This repository does not
-include fabricated `out/` results.
+The evaluator checks rates, contract details, policies, sources, questions and `not_loaded` items. Schema-valid JSON can still contain wrong or missing values. Do not copy files from `expected/` into `out/`; the output files must come from `analyse.py`.
 
-## Offline tests
+## Tests
 
-Both opt-in live flags must remain disabled for the offline suite:
+The offline test suite does not make paid model calls. Run it with both live flags disabled:
 
 ```powershell
 $env:RUN_LIVE_EXTRACTION_C02 = "0"
@@ -84,107 +98,46 @@ $env:RUN_LIVE_RECONCILIATION = "0"
 python -m pytest -v
 ```
 
-The c02 live extraction comparison is opt-in:
+### Latest local verification
 
-```powershell
-$env:RUN_LIVE_EXTRACTION_C02 = "1"
-python -m pytest -v .\tests\test_extract_live.py
-Remove-Item Env:RUN_LIVE_EXTRACTION_C02
-```
+With both live flags set to `0`, `python -m pytest -q` completed successfully:
+**173 passed, 6 skipped in 45.09 seconds**. The opt-in live extraction and
+live reconciliation tests were not run. This offline result does not establish
+live model accuracy, c01–c05 evaluation scores, or consistency across three
+live runs. The previously reported c02 16/16 result remains a separate,
+focused extraction-stage test, not part of this offline result.
 
-The c02 report separates expected table rates from other commercial rates and
-includes each rate's candidate ID, evidence assessment and issues, and source
-file/page. Fixture-value matches are reported separately and do not imply that
-the evidence is verified. Stage timings use milliseconds; rendering and OCR are
-subtotals of PDF ingestion, and the OpenAI API duration includes the SDK's
-structured response parsing.
+Live tests are separate and make paid API requests. They need working credentials, available quota and a compatible model. If the provider returns a quota or rate-limit error, the test is blocked; it is not evidence that extraction accuracy passed or failed. Avoid repeatedly retrying after the same provider error.
 
-The five c01–c05 live extraction/reconciliation-to-golden comparisons are
-opt-in:
+## Validation status
 
-```powershell
-$env:RUN_LIVE_RECONCILIATION = "1"
-python -m pytest -v .\tests\test_reconcile.py
-Remove-Item Env:RUN_LIVE_RECONCILIATION
-```
+| Check | Current evidence |
+| --- | --- |
+| Offline tests | See **Latest local verification** above. |
+| Focused c02 OCR/rate extraction | One recorded run matched **16/16** expected table-rate candidates and verified those 16. This was an extraction-stage check, not a full final-JSON comparison; another attempt did not reproduce the same result consistently. |
+| Full c01-c05 comparison | Not completed successfully. A c01 mismatch was reported; other attempts were interrupted by provider quota/rate limits. |
+| Three runs per contract | Not completed. Deterministic reconciliation for identical candidates does not prove repeatability across separate live model calls. |
+| Generated `out/` files | `out/c01.json` through `out/c05.json` are not present in this repository snapshot. They are required by the assignment and must be generated by successful runs. |
+| Hidden contracts | Not tested. |
 
-Both live commands make paid API calls and require valid credentials, sufficient
-credits, matching model pricing, and a model that supports the configured
-structured response. A quota/insufficient-credit result is blocked, not a
-passed golden comparison. Live comparisons pass only when extraction and
-reconciliation complete and the output is actually compared with its expected
-fixture.
+The assignment asks for a time, token and cost table for every sample. Those figures have not been established for the five final outputs, so they are not invented here:
 
-The CLI's OpenAI error report distinguishes insufficient credits/quota,
-requests-per-minute limits, tokens-per-minute limits, and other API errors.
-For HTTP 429 responses it reports present rate-limit response headers,
-including project-specific `x-ratelimit-*` headers, or states that none of
-the tracked headers were present. It does not log request or authorization
-headers. The SDK client has automatic retries disabled.
+| Contract | Runtime | Input/output tokens | Estimated cost | Final `evaluate.py` result |
+| --- | --- | --- | --- | --- |
+| c01 | Not verified | Not verified | Not verified | No output file |
+| c02 | Not verified for final JSON | Not verified for final JSON | Not verified for final JSON | No output file |
+| c03 | Not verified | Not verified | Not verified | No output file |
+| c04 | Not verified | Not verified | Not verified | No output file |
+| c05 | Not verified | Not verified | Not verified | No output file |
 
-On a live golden mismatch, the comparison reports every differing JSON path,
-including expected and actual values and whether a property is missing,
-additional, or unequal. Saving the reconciled actual JSON is separately
-opt-in; it is never enabled by the offline suite. Set
-`SAVE_LIVE_FAILURE_OUTPUT=1` to save failed outputs outside `expected/`.
-The default directory is `.\artifacts\live-failures`; optionally set
-`LIVE_FAILURE_OUTPUT_DIR` to another directory outside `expected/`. Files use
-unique names and do not overwrite existing outputs. For example:
+`evaluate.py` was checked against the current repository snapshot, but it found no `out/c01.json` through `out/c05.json`. Its missing-file report is not an accuracy score. Add the real evaluator output after successful runs generate those files.
 
-```powershell
-$env:RUN_LIVE_RECONCILIATION = "1"
-$env:SAVE_LIVE_FAILURE_OUTPUT = "1"
-$env:LIVE_FAILURE_OUTPUT_DIR = ".\artifacts\live-failures"
-python -m pytest -v .\tests\test_reconcile.py
-Remove-Item Env:RUN_LIVE_RECONCILIATION, Env:SAVE_LIVE_FAILURE_OUTPUT, Env:LIVE_FAILURE_OUTPUT_DIR
-```
+## Limitations and next steps
 
-## Evidence and reconciliation
+OCR can misread digits or table columns. A model can omit or misinterpret a detail. Evidence checks can reject unsupported suggestions, but they cannot recover every missed value. Unusual layouts or wording may also fall outside the current extraction and verification rules.
 
-`ingest.ingest_folder(...)` returns a common page structure for selectable-text
-and scanned pages: original text, filename, 1-based page number, reconstructed
-lines, and (for OCR) word positions and confidence. The CLI runs ingestion in a
-bounded worker and withholds all pages unless the complete folder succeeds;
-OCR failures and deadline exhaustion are errors rather than silently skipped
-pages.
-
-`extract.extract_folder(...)` returns Pydantic candidate records and linked
-evidence assessments (`verified`, `uncertain`, or `invalid`). Candidates retain
-their source filename, page, and exact quote. The candidate content is treated
-as untrusted data, and conflicting candidates are preserved. Call
-`run.verified_candidates()` to access verified candidates; reconciliation
-continues to use that verified-only gate for loaded values. A separate
-assessment-aware path can ask a material clarification about a limited,
-source-supported uncertainty without loading the uncertain value. Child-policy
-terms that are relevant but have no company-schema field are retained in
-`not_loaded` with their citations.
-
-`reconcile.reconcile_run(run)` produces deterministic schema-shaped output,
-sorts conflicts and questions canonically, and validates against the unchanged
-company schema. It does not call the model or print diagnostics.
-
-## Current acceptance limitations and results
-
-Offline tests can verify deterministic reconciliation for identical candidate
-inputs. They do not prove that repeated live LLM extractions are deterministic.
-The c01–c05 runtime, token usage, configured-price estimate, and golden
-evaluation results remain pending until successful live runs have actually
-produced them. Cost values are estimates and do not establish actual provider
-billing. API-credit availability and hidden-contract generalization have not
-been verified in this offline run.
-
-| Contract | Runtime | Input tokens | Output tokens | Estimated API cost | Evaluation result |
-| --- | --- | --- | --- | --- | --- |
-| c01 | Pending live run | Pending live run | Pending live run | Pending live run | Pending live comparison |
-| c02 | Pending live run | Pending live run | Pending live run | Pending live run | Pending live comparison |
-| c03 | Pending live run | Pending live run | Pending live run | Pending live run | Pending live comparison |
-| c04 | Pending live run | Pending live run | Pending live run | Pending live run | Pending live comparison |
-| c05 | Pending live run | Pending live run | Pending live run | Pending live run | Pending live comparison |
+With another week, I would complete repeatable live runs on all five samples, review each evaluator miss, improve only the rules responsible for those misses, and test the same workflow on additional contracts. I would prioritise extraction accuracy and repeatability over adding features.
 
 ## AI-tool disclosure
 
-An AI assistant using Copilot SDK in VS Code assisted with code inspection,
-implementation, tests, and documentation during development. It did not make
-live extraction calls, generate the sample outputs, or supply live measurements
-for this results table. Offline tests and `evaluate.py` are project commands;
-the evaluator only compares output files that have actually been generated.
+An AI assistant using Copilot SDK in VS Code assisted with code inspection, implementation, tests and documentation. The live extraction results above came from runs of the project tests. `evaluate.py` compares generated output files; it does not create those files.

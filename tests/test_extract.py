@@ -31,63 +31,47 @@ ROOT = Path(__file__).resolve().parents[1]
 CONTRACTS = ROOT / "contracts"
 
 
-class FakeCompletions:
+class FakeGeminiModels:
     def __init__(self, make_result):
         self.make_result = make_result
         self.requests = []
 
-    def parse(self, model, messages, response_format, **kwargs):
-        pages = json.loads(messages[1]["content"])["pages"]
+    def generate_content(self, model, contents, config):
+        pages = json.loads(contents)["pages"]
         self.requests.append(
-            {"model": model, "messages": messages, "pages": pages, **kwargs}
+            {"model": model, "contents": contents, "config": config, "pages": pages}
         )
-        parsed = self.make_result(pages, response_format)
+        parsed = self.make_result(pages, extract.ExtractionResult)
         return SimpleNamespace(
-            choices=[SimpleNamespace(message=SimpleNamespace(parsed=parsed, refusal=None))],
-            usage=SimpleNamespace(prompt_tokens=1000, completion_tokens=200, total_tokens=1200),
+            text=parsed.model_dump_json() if parsed is not None else None,
+            usage_metadata=SimpleNamespace(
+                prompt_token_count=1000,
+                candidates_token_count=200,
+                total_token_count=1200,
+            ),
         )
 
 
 def _client(make_result):
-    completions = FakeCompletions(make_result)
-    client = SimpleNamespace(
-        beta=SimpleNamespace(chat=SimpleNamespace(completions=completions))
-    )
-    return client, completions
+    models = FakeGeminiModels(make_result)
+    return SimpleNamespace(models=models), models
 
 
-def _mock_openai_status_error(status, code, message, headers=None, request_headers=None):
-    from httpx2 import Request, Response
+def _mock_gemini_api_error(status, code, message):
+    from google.genai.errors import ClientError
 
-    response = Response(
+    return ClientError(
         status,
-        headers=headers or {},
-        request=Request(
-            "POST",
-            "https://api.openai.com/v1/chat/completions",
-            headers=request_headers or {},
-        ),
+        {"error": {"status": code, "message": message}},
     )
-    body = {"error": {"code": code, "message": message}}
-    if status == 429:
-        from openai import RateLimitError
-
-        return RateLimitError(message, response=response, body=body)
-    from openai import APIStatusError
-
-    return APIStatusError(message, response=response, body=body)
 
 
-def _request_with_openai_error(provider_error):
-    class FailingCompletions:
-        def parse(self, **kwargs):
+def _request_with_gemini_error(provider_error):
+    class FailingModels:
+        def generate_content(self, **kwargs):
             raise provider_error
 
-    client = SimpleNamespace(
-        beta=SimpleNamespace(
-            chat=SimpleNamespace(completions=FailingCompletions())
-        )
-    )
+    client = SimpleNamespace(models=FailingModels())
     with pytest.raises(ExtractionError) as raised:
         extract._request_extraction(client, "test-model", "prompt", "page message")
     return raised.value
@@ -113,12 +97,12 @@ def _normalise(text):
 
 
 def test_all_sample_contract_folders_are_sent_as_structured_pages():
-    client, completions = _client(_empty_result)
+    client, models = _client(_empty_result)
     config = _config()
 
     for folder in sorted(path for path in CONTRACTS.iterdir() if path.is_dir()):
         run = extract_folder(folder, config=config, client=client)
-        request = completions.requests[-1]
+        request = models.requests[-1]
         expected_sources = set()
         for pdf_path in sorted(folder.glob("*.pdf")):
             with pymupdf.open(pdf_path) as document:
@@ -133,8 +117,83 @@ def test_all_sample_contract_folders_are_sent_as_structured_pages():
         assert run.candidate_records == ()
         assert run.model == "test-model"
 
-    assert len(completions.requests) == 5
-    assert "untrusted" in completions.requests[0]["messages"][0]["content"].lower()
+    assert len(models.requests) == 5
+    config = models.requests[0]["config"]
+    assert "untrusted" in config.system_instruction.lower()
+    assert config.response_mime_type == "application/json"
+    assert "exclusiveMinimum" not in config.response_schema["$defs"][
+        "RoomRateCandidate"
+    ]["properties"]["price"]
+    amount_schema = config.response_schema["$defs"]["CommercialTermCandidate"][
+        "properties"
+    ]["amount"]
+    assert all(
+        "exclusiveMinimum" not in variant
+        for variant in amount_schema["anyOf"]
+    )
+    original_schema = extract.ExtractionResult.model_json_schema()
+    assert (
+        original_schema["$defs"]["RoomRateCandidate"]["properties"]["price"][
+            "exclusiveMinimum"
+        ]
+        == 0
+    )
+    assert (
+        original_schema["$defs"]["CommercialTermCandidate"]["properties"]["amount"][
+            "anyOf"
+        ][0]["exclusiveMinimum"]
+        == 0
+    )
+    assert config.max_output_tokens == MAX_COMPLETION_TOKENS
+
+
+@pytest.mark.parametrize(
+    ("category", "candidate"),
+    [
+        (
+            "room_rates",
+            {
+                "occupancy": "single",
+                "price": 0,
+                "rate_type": "individual",
+                "source": {"file": "contract.pdf", "page": 1, "quote": "zero"},
+            },
+        ),
+        (
+            "room_rates",
+            {
+                "occupancy": "single",
+                "price": -1,
+                "rate_type": "individual",
+                "source": {"file": "contract.pdf", "page": 1, "quote": "negative"},
+            },
+        ),
+        (
+            "commercial_terms",
+            {
+                "kind": "other",
+                "description": "zero amount",
+                "amount": 0,
+                "source": {"file": "contract.pdf", "page": 1, "quote": "zero"},
+            },
+        ),
+        (
+            "commercial_terms",
+            {
+                "kind": "other",
+                "description": "negative amount",
+                "amount": -1,
+                "source": {"file": "contract.pdf", "page": 1, "quote": "negative"},
+            },
+        ),
+    ],
+)
+def test_gemini_response_keeps_strict_positive_price_validation(category, candidate):
+    payload = {field: [] for field in extract.ExtractionResult.model_fields}
+    payload[category] = [candidate]
+
+    with pytest.raises(ExtractionError, match="did not match the evidence schema"):
+        extract._read_response(SimpleNamespace(text=json.dumps(payload)))
 
 
 def test_c01_hotel_fact_returns_as_a_source_backed_candidate():
@@ -266,10 +325,10 @@ def test_extraction_timing_aggregates_ingestion_stages_and_total(monkeypatch):
     assert timings.rendering_ms == pytest.approx(3)
     assert timings.ocr_ms == pytest.approx(6)
     assert timings.prompt_construction_preflight_ms > 0
-    assert timings.openai_api_request_response_ms > 0
+    assert timings.model_api_request_response_ms > 0
     assert timings.pydantic_response_parsing_ms >= 0
     assert timings.evidence_validation_ms >= 0
-    assert timings.total_extraction_ms >= timings.openai_api_request_response_ms
+    assert timings.total_extraction_ms >= timings.model_api_request_response_ms
     assert timings.total_extraction_ms > 0
     assert timings.rendering_ms <= timings.pdf_ingestion_ms
     assert timings.ocr_ms <= timings.pdf_ingestion_ms
@@ -413,156 +472,150 @@ def test_non_verbatim_source_quote_is_preserved_as_invalid_evidence():
     assert "exact substring" in run.evidence_assessments[0].issues[0]
 
 
-def test_api_key_is_required_for_a_real_client(monkeypatch):
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    with pytest.raises(ExtractionError, match="OPENAI_API_KEY"):
+def test_gemini_api_key_is_required_for_a_real_client(monkeypatch):
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    with pytest.raises(ExtractionError, match="GEMINI_API_KEY"):
         _create_client()
 
 
-def test_openai_client_disables_sdk_retries(monkeypatch):
-    import openai
+def test_gemini_client_disables_sdk_retries(monkeypatch):
+    from google import genai
 
     captured = {}
 
-    class FakeOpenAI:
+    class FakeGeminiClient:
         def __init__(self, **kwargs):
             captured.update(kwargs)
 
-    monkeypatch.setenv("OPENAI_API_KEY", "offline-test-key")
-    monkeypatch.setattr(openai, "OpenAI", FakeOpenAI)
+    monkeypatch.setenv("GEMINI_API_KEY", "offline-test-key")
+    monkeypatch.setattr(genai, "Client", FakeGeminiClient)
 
-    _create_client(timeout_seconds=12)
+    client = _create_client(timeout_seconds=12)
 
-    assert captured == {"max_retries": 0, "timeout": 12}
+    assert isinstance(client, FakeGeminiClient)
+    assert captured["api_key"] == "offline-test-key"
+    assert captured["http_options"].timeout == 12_000
+    assert captured["http_options"].retry_options.attempts == 1
 
 
-def test_tpm_429_preserves_status_classification_and_available_headers():
-    response_headers = {
-        "x-ratelimit-limit-requests": "10",
-        "x-ratelimit-remaining-requests": "9",
-        "x-ratelimit-reset-requests": "1s",
-        "x-ratelimit-limit-tokens": "60000",
-        "x-ratelimit-remaining-tokens": "0",
-        "x-ratelimit-reset-tokens": "6s",
-        "retry-after": "2",
-        "x-request-id": "req_test_tpm",
-        "x-ratelimit-limit-project-tokens": "50000",
-        "x-ratelimit-api-key": "rate-limit-api-secret",
-        "authorization": "Bearer sk-response-secret",
-        "x-api-key": "response-api-secret",
-    }
-    provider_error = _mock_openai_status_error(
+def test_gemini_tpm_429_preserves_status_and_classification():
+    provider_error = _mock_gemini_api_error(
         429,
-        "rate_limit_exceeded",
+        "RESOURCE_EXHAUSTED",
         "Rate limit reached for tokens per minute (TPM).",
-        headers=response_headers,
-        request_headers={"Authorization": "Bearer sk-request-secret"},
     )
 
-    error = _request_with_openai_error(provider_error)
+    error = _request_with_gemini_error(provider_error)
 
     assert error.status_code == 429
     assert error.classification == "tokens_per_minute_limit"
-    assert error.provider_code == "rate_limit_exceeded"
+    assert error.provider_code == "RESOURCE_EXHAUSTED"
     assert error.details == {
         "status_code": 429,
         "classification": "tokens_per_minute_limit",
-        "provider_code": "rate_limit_exceeded",
-        "rate_limit_headers": {
-            "retry-after": "2",
-            "x-ratelimit-limit-project-tokens": "50000",
-            "x-ratelimit-limit-requests": "10",
-            "x-ratelimit-limit-tokens": "60000",
-            "x-ratelimit-remaining-requests": "9",
-            "x-ratelimit-remaining-tokens": "0",
-            "x-ratelimit-reset-requests": "1s",
-            "x-ratelimit-reset-tokens": "6s",
-            "x-request-id": "req_test_tpm",
-        },
+        "provider_code": "RESOURCE_EXHAUSTED",
     }
     assert error.__cause__ is provider_error
 
 
-def test_rpm_429_is_classified_from_provider_message_and_headers():
-    provider_error = _mock_openai_status_error(
+def test_gemini_rpm_429_is_classified_from_provider_message():
+    provider_error = _mock_gemini_api_error(
         429,
-        "rate_limit_exceeded",
+        "RESOURCE_EXHAUSTED",
         "Rate limit reached for requests per minute (RPM).",
-        headers={
-            "x-ratelimit-limit-requests": "10",
-            "x-ratelimit-remaining-requests": "0",
-            "x-ratelimit-remaining-tokens": "50000",
-        },
     )
 
-    error = _request_with_openai_error(provider_error)
+    error = _request_with_gemini_error(provider_error)
 
     assert error.status_code == 429
     assert error.classification == "requests_per_minute_limit"
-    assert error.rate_limit_headers["x-ratelimit-remaining-requests"] == "0"
 
-
-def test_429_limit_type_can_be_inferred_from_remaining_token_header():
-    provider_error = _mock_openai_status_error(
+def test_gemini_quota_429_is_not_reported_as_a_minute_rate_limit():
+    provider_error = _mock_gemini_api_error(
         429,
-        "rate_limit_exceeded",
-        "Rate limit exceeded.",
-        headers={
-            "x-ratelimit-remaining-requests": "8",
-            "x-ratelimit-remaining-tokens": "0",
-        },
+        "RESOURCE_EXHAUSTED",
+        "Daily quota exceeded for the configured model.",
     )
 
-    error = _request_with_openai_error(provider_error)
-
-    assert error.classification == "tokens_per_minute_limit"
-
-
-def test_insufficient_credit_429_is_not_classified_as_a_rate_limit():
-    provider_error = _mock_openai_status_error(
-        429,
-        "insufficient_quota",
-        "You exceeded your current quota.",
-    )
-
-    error = _request_with_openai_error(provider_error)
+    error = _request_with_gemini_error(provider_error)
 
     assert error.status_code == 429
-    assert error.classification == "insufficient_quota"
-    assert error.rate_limit_headers == {}
+    assert error.classification == "quota_exceeded"
 
 
-def test_429_without_response_headers_keeps_classification_and_empty_headers():
-    provider_error = _mock_openai_status_error(
-        429,
-        "rate_limit_exceeded",
-        "Rate limit reached for tokens per minute (TPM).",
+def test_gemini_authentication_error_is_reported_without_echoing_key():
+    provider_error = _mock_gemini_api_error(
+        400,
+        "API_KEY_INVALID",
+        "API key not valid. api-key=not-a-real-secret",
     )
 
-    error = _request_with_openai_error(provider_error)
+    error = _request_with_gemini_error(provider_error)
 
-    assert error.status_code == 429
-    assert error.classification == "tokens_per_minute_limit"
-    assert error.rate_limit_headers == {}
+    assert error.status_code == 400
+    assert error.classification == "authentication_error"
+    assert "not-a-real-secret" not in str(error)
 
 
-def test_non_429_openai_errors_keep_status_and_other_api_classification():
-    provider_error = _mock_openai_status_error(
+def test_gemini_network_failure_is_classified_without_retry():
+    from httpx2 import ConnectError, Request
+
+    provider_error = ConnectError(
+        "connection failed",
+        request=Request("POST", "https://generativelanguage.googleapis.com"),
+    )
+    error = _request_with_gemini_error(provider_error)
+
+    assert error.status_code is None
+    assert error.classification == "network_error"
+    assert error.__cause__ is provider_error
+
+
+def test_other_gemini_api_error_keeps_status_and_classification():
+    provider_error = _mock_gemini_api_error(
         503,
-        "server_error",
+        "UNAVAILABLE",
         "The provider is temporarily unavailable.",
     )
 
-    error = _request_with_openai_error(provider_error)
+    error = _request_with_gemini_error(provider_error)
 
     assert error.status_code == 503
-    assert error.classification == "other_api_error"
+    assert error.classification == "api_error"
     assert error.details["status_code"] == 503
+
+
+def test_malformed_gemini_json_is_rejected_without_fabricating_candidates():
+    with pytest.raises(ExtractionError, match="malformed JSON") as raised:
+        extract._read_response(SimpleNamespace(text="{broken", usage_metadata=None))
+
+    assert raised.value.classification == "invalid_response"
+
+
+def test_gemini_json_with_missing_candidate_categories_is_rejected():
+    with pytest.raises(ExtractionError, match="omitted required candidate categories") as raised:
+        extract._read_response(
+            SimpleNamespace(text='{"contract_facts": []}', usage_metadata=None)
+        )
+
+    assert raised.value.classification == "invalid_response"
+
+
+def test_gemini_json_with_unexpected_properties_is_rejected():
+    payload = {name: [] for name in extract.ExtractionResult.model_fields}
+    payload["unexpected"] = True
+
+    with pytest.raises(ExtractionError, match="did not match the evidence schema") as raised:
+        extract._read_response(
+            SimpleNamespace(text=json.dumps(payload), usage_metadata=None)
+        )
+
+    assert raised.value.classification == "invalid_response"
 
 
 def test_missing_structured_response_is_rejected():
     client, _ = _client(lambda pages, response_format: None)
-    with pytest.raises(ExtractionError, match="structured candidate data"):
+    with pytest.raises(ExtractionError, match="structured candidate JSON"):
         extract_folder(
             CONTRACTS / "c01",
             config=_config(),
@@ -594,7 +647,7 @@ def _single_page():
     ],
 )
 def test_missing_or_mismatched_model_prices_fail_before_request(config):
-    client, completions = _client(_empty_result)
+    client, models = _client(_empty_result)
 
     with pytest.raises(ModelPricingConfigurationError):
         extract_folder(
@@ -604,28 +657,28 @@ def test_missing_or_mismatched_model_prices_fail_before_request(config):
             pages=[_single_page()],
         )
 
-    assert completions.requests == []
+    assert models.requests == []
 
 
 @pytest.mark.parametrize(
     ("name", "value"),
     [
-        ("OPENAI_INPUT_COST_PER_MILLION", "not-a-number"),
-        ("OPENAI_OUTPUT_COST_PER_MILLION", "not-a-number"),
-        ("OPENAI_INPUT_COST_PER_MILLION", "NaN"),
-        ("OPENAI_OUTPUT_COST_PER_MILLION", "Infinity"),
-        ("OPENAI_INPUT_COST_PER_MILLION", "-Infinity"),
-        ("OPENAI_INPUT_COST_PER_MILLION", "-0.01"),
-        ("OPENAI_OUTPUT_COST_PER_MILLION", "-0.01"),
+        ("GEMINI_INPUT_COST_PER_MILLION", "not-a-number"),
+        ("GEMINI_OUTPUT_COST_PER_MILLION", "not-a-number"),
+        ("GEMINI_INPUT_COST_PER_MILLION", "NaN"),
+        ("GEMINI_OUTPUT_COST_PER_MILLION", "Infinity"),
+        ("GEMINI_INPUT_COST_PER_MILLION", "-Infinity"),
+        ("GEMINI_INPUT_COST_PER_MILLION", "-0.01"),
+        ("GEMINI_OUTPUT_COST_PER_MILLION", "-0.01"),
     ],
 )
 def test_invalid_environment_prices_fail_before_client_creation(
     monkeypatch, name, value
 ):
-    monkeypatch.setenv("OPENAI_MODEL", "test-model")
-    monkeypatch.setenv("OPENAI_PRICING_MODEL", "test-model")
-    monkeypatch.setenv("OPENAI_INPUT_COST_PER_MILLION", "0.15")
-    monkeypatch.setenv("OPENAI_OUTPUT_COST_PER_MILLION", "0.60")
+    monkeypatch.setenv("GEMINI_MODEL", "test-model")
+    monkeypatch.setenv("GEMINI_PRICING_MODEL", "test-model")
+    monkeypatch.setenv("GEMINI_INPUT_COST_PER_MILLION", "0.15")
+    monkeypatch.setenv("GEMINI_OUTPUT_COST_PER_MILLION", "0.60")
     monkeypatch.setenv(name, value)
     client_creations = []
     monkeypatch.setattr(
@@ -645,11 +698,11 @@ def test_invalid_environment_prices_fail_before_client_creation(
 
 
 def test_matching_model_pricing_environment_allows_extraction(monkeypatch):
-    monkeypatch.setenv("OPENAI_MODEL", "test-model")
-    monkeypatch.setenv("OPENAI_PRICING_MODEL", "test-model")
-    monkeypatch.setenv("OPENAI_INPUT_COST_PER_MILLION", "0.15")
-    monkeypatch.setenv("OPENAI_OUTPUT_COST_PER_MILLION", "0.60")
-    client, completions = _client(_empty_result)
+    monkeypatch.setenv("GEMINI_MODEL", "test-model")
+    monkeypatch.setenv("GEMINI_PRICING_MODEL", "test-model")
+    monkeypatch.setenv("GEMINI_INPUT_COST_PER_MILLION", "0.15")
+    monkeypatch.setenv("GEMINI_OUTPUT_COST_PER_MILLION", "0.60")
+    client, models = _client(_empty_result)
 
     config = ExtractionConfig.from_env()
     run = extract_folder(
@@ -662,12 +715,12 @@ def test_matching_model_pricing_environment_allows_extraction(monkeypatch):
     assert config.require_model_prices() == (0.15, 0.60)
     assert config.model == config.pricing_model == "test-model"
     assert run.model == "test-model"
-    assert len(completions.requests) == 1
-    assert completions.requests[0]["model"] == "test-model"
+    assert len(models.requests) == 1
+    assert models.requests[0]["model"] == "test-model"
 
 
 def test_high_preflight_estimate_is_rejected_before_request():
-    client, completions = _client(_empty_result)
+    client, models = _client(_empty_result)
     config = _config(
         input_cost_per_million=1000,
         output_cost_per_million=1000,
@@ -681,4 +734,4 @@ def test_high_preflight_estimate_is_rejected_before_request():
             pages=[_single_page()],
         )
 
-    assert completions.requests == []
+    assert models.requests == []

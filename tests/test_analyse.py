@@ -17,14 +17,6 @@ from ingest import IngestionTimeoutError
 from reconcile import ReconciliationError
 
 
-class MockProviderError(Exception):
-    def __init__(self, status_code, code, message="provider test error"):
-        super().__init__(message)
-        self.status_code = status_code
-        self.code = code
-        self.body = {"error": {"code": code, "message": message}}
-
-
 def _empty_run():
     return ExtractionRun(
         model="offline-test-model",
@@ -251,10 +243,10 @@ def test_malformed_environment_price_fails_before_client_creation(
     original_from_env = analyse.ExtractionConfig.from_env
     folder = _prepare_folder(tmp_path, monkeypatch)
     calls = {"client": 0, "extract": 0}
-    monkeypatch.setenv("OPENAI_MODEL", "offline-test-model")
-    monkeypatch.setenv("OPENAI_PRICING_MODEL", "offline-test-model")
-    monkeypatch.setenv("OPENAI_INPUT_COST_PER_MILLION", "0.15")
-    monkeypatch.setenv("OPENAI_OUTPUT_COST_PER_MILLION", "not-a-number")
+    monkeypatch.setenv("GEMINI_MODEL", "offline-test-model")
+    monkeypatch.setenv("GEMINI_PRICING_MODEL", "offline-test-model")
+    monkeypatch.setenv("GEMINI_INPUT_COST_PER_MILLION", "0.15")
+    monkeypatch.setenv("GEMINI_OUTPUT_COST_PER_MILLION", "not-a-number")
     monkeypatch.setattr(
         analyse.ExtractionConfig,
         "from_env",
@@ -276,7 +268,7 @@ def test_malformed_environment_price_fails_before_client_creation(
 
     assert captured.out == ""
     assert "model pricing configuration error" in captured.err.lower()
-    assert "OPENAI_OUTPUT_COST_PER_MILLION" in captured.err
+    assert "GEMINI_OUTPUT_COST_PER_MILLION" in captured.err
     assert calls == {"client": 0, "extract": 0}
 
 
@@ -353,31 +345,23 @@ def test_missing_provider_usage_is_reported_as_unavailable(
 
 
 @pytest.mark.parametrize(
-    ("cause", "expected"),
+    ("status_code", "classification", "expected"),
     [
-        (
-            MockProviderError(429, "insufficient_quota"),
-            "credits/quota are insufficient",
-        ),
-        (
-            MockProviderError(429, "rate_limit_exceeded"),
-            "rate limit reached",
-        ),
-        (MockProviderError(401, "invalid_api_key"), "authentication failed"),
-        (
-            MockProviderError(400, "context_length_exceeded"),
-            "context/request-size limit",
-        ),
+        (429, "quota_exceeded", "quota is exhausted"),
+        (429, "rate_limit", "rate limit reached"),
+        (401, "authentication_error", "authentication failed"),
+        (400, "request_size_limit", "context/request-size limit"),
     ],
 )
 def test_api_quota_and_rate_limit_errors_are_distinguished(
-    tmp_path, monkeypatch, capsys, cause, expected
+    tmp_path, monkeypatch, capsys, status_code, classification, expected
 ):
     def fail_extraction(folder, config, client, pages):
-        try:
-            raise cause
-        except Exception as exc:
-            raise ExtractionError("provider request failed") from exc
+        raise ExtractionError(
+            "Gemini structured extraction failed",
+            status_code=status_code,
+            classification=classification,
+        )
 
     folder = _prepare_folder(tmp_path, monkeypatch, extraction=fail_extraction)
 
@@ -391,29 +375,20 @@ def test_api_quota_and_rate_limit_errors_are_distinguished(
 @pytest.mark.parametrize(
     ("classification", "expected"),
     [
-        ("insufficient_quota", "credits/quota are insufficient"),
+        ("quota_exceeded", "quota is exhausted"),
         ("requests_per_minute_limit", "requests-per-minute limit reached"),
         ("tokens_per_minute_limit", "tokens-per-minute limit reached"),
-        ("rate_limit", "limit type was not identified"),
+        ("rate_limit", "limit type could not be identified"),
     ],
 )
-def test_429_diagnostic_reports_classification_headers_and_no_credentials(
+def test_429_diagnostic_reports_classification_without_echoing_credentials(
     tmp_path, monkeypatch, capsys, classification, expected
 ):
     error = ExtractionError(
-        "OpenAI structured extraction failed: Authorization: Bearer sk-test-secret",
+        "Gemini structured extraction failed: Authorization: Bearer sk-test-secret",
         status_code=429,
         classification=classification,
-        provider_code="rate_limit_exceeded",
-        rate_limit_headers={
-            "x-ratelimit-limit-requests": "10",
-            "x-ratelimit-limit-tokens": "60000",
-            "retry-after": "1",
-            "x-request-id": "req_test_safe",
-            "Authorization": "Bearer sk-header-secret",
-            "x-api-key": "header-api-secret",
-            "x-ratelimit-api-key": "ratelimit-api-secret",
-        },
+        provider_code="RESOURCE_EXHAUSTED",
     )
 
     def fail_extraction(folder, config, client, pages):
@@ -426,26 +401,15 @@ def test_429_diagnostic_reports_classification_headers_and_no_credentials(
 
     assert captured.out == ""
     assert expected in captured.err.lower()
-    assert "HTTP 429" in captured.err
-    assert "x-ratelimit-limit-requests=10" in captured.err
-    assert "x-ratelimit-limit-tokens=60000" in captured.err
-    assert "retry-after=1" in captured.err
-    assert "x-request-id=req_test_safe" in captured.err
     assert "sk-test-secret" not in captured.err
-    assert "sk-header-secret" not in captured.err
-    assert "header-api-secret" not in captured.err
-    assert "ratelimit-api-secret" not in captured.err
-    assert "authorization" not in captured.err.lower()
-    assert "x-api-key" not in captured.err.lower()
 
 
-def test_429_diagnostic_reports_when_no_tracked_headers_are_present(
+def test_network_failure_is_reported_without_request_details(
     tmp_path, monkeypatch, capsys
 ):
     error = ExtractionError(
-        "OpenAI structured extraction failed",
-        status_code=429,
-        classification="tokens_per_minute_limit",
+        "Gemini network request failed: Authorization: Bearer sk-network-secret",
+        classification="network_error",
     )
 
     def fail_extraction(folder, config, client, pages):
@@ -456,8 +420,8 @@ def test_429_diagnostic_reports_when_no_tracked_headers_are_present(
     assert analyse.main([str(folder)]) != 0
     captured = capsys.readouterr()
 
-    assert "tokens-per-minute limit reached" in captured.err.lower()
-    assert "none of the tracked headers were present" in captured.err.lower()
+    assert "network request failed" in captured.err.lower()
+    assert "sk-network-secret" not in captured.err
 
 
 def test_invalid_file_path_is_rejected(tmp_path, capsys):

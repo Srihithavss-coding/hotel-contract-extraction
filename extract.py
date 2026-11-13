@@ -144,7 +144,7 @@ class ExtractionTimings(EvidenceModel):
     rendering_ms: float = Field(default=0, ge=0)
     ocr_ms: float = Field(default=0, ge=0)
     prompt_construction_preflight_ms: float = Field(default=0, ge=0)
-    openai_api_request_response_ms: float = Field(default=0, ge=0)
+    model_api_request_response_ms: float = Field(default=0, ge=0)
     pydantic_response_parsing_ms: float = Field(default=0, ge=0)
     evidence_validation_ms: float = Field(default=0, ge=0)
     total_extraction_ms: float = Field(default=0, ge=0)
@@ -286,22 +286,15 @@ class ExtractionError(RuntimeError):
         status_code: Optional[int] = None,
         classification: Optional[str] = None,
         provider_code: Optional[str] = None,
-        rate_limit_headers: Optional[dict[str, str]] = None,
     ) -> None:
         super().__init__(message)
         self.status_code = status_code
         self.classification = classification
         self.provider_code = provider_code
-        self.rate_limit_headers = {
-            str(name).casefold(): str(value).strip()
-            for name, value in (rate_limit_headers or {}).items()
-            if _is_rate_limit_header(str(name).casefold())
-        }
         self.details = {
             "status_code": self.status_code,
             "classification": self.classification,
             "provider_code": self.provider_code,
-            "rate_limit_headers": dict(self.rate_limit_headers),
         }
 
 
@@ -311,7 +304,7 @@ class ModelPricingConfigurationError(ExtractionError):
 
 @dataclass(frozen=True)
 class ExtractionConfig:
-    model: str = "gpt-4o-mini"
+    model: str = "gemini-3.8-flash"
     pricing_model: Optional[str] = None
     input_cost_per_million: Optional[float] = None
     output_cost_per_million: Optional[float] = None
@@ -319,39 +312,39 @@ class ExtractionConfig:
     @classmethod
     def from_env(cls) -> "ExtractionConfig":
         config = cls(
-            model=os.environ.get("OPENAI_MODEL", "gpt-4o-mini").strip(),
+            model=os.environ.get("GEMINI_MODEL", "gemini-3.8-flash").strip(),
             pricing_model=(
-                os.environ.get("OPENAI_PRICING_MODEL", "").strip() or None
+                os.environ.get("GEMINI_PRICING_MODEL", "").strip() or None
             ),
             input_cost_per_million=_optional_env_price(
-                "OPENAI_INPUT_COST_PER_MILLION"
+                "GEMINI_INPUT_COST_PER_MILLION"
             ),
             output_cost_per_million=_optional_env_price(
-                "OPENAI_OUTPUT_COST_PER_MILLION"
+                "GEMINI_OUTPUT_COST_PER_MILLION"
             ),
         )
         if not config.model:
-            raise ModelPricingConfigurationError("OPENAI_MODEL must not be empty")
+            raise ModelPricingConfigurationError("GEMINI_MODEL must not be empty")
         return config
 
     def require_model_prices(self) -> tuple[float, float]:
         if not self.pricing_model:
             raise ModelPricingConfigurationError(
-                "Set OPENAI_PRICING_MODEL to the exact selected model and provide "
+                "Set GEMINI_PRICING_MODEL to the exact selected model and provide "
                 "both per-million token prices before making an API request."
             )
         if self.pricing_model != self.model:
             raise ModelPricingConfigurationError(
                 f"Pricing is configured for {self.pricing_model!r}, but "
-                f"OPENAI_MODEL selects {self.model!r}."
+                f"GEMINI_MODEL selects {self.model!r}."
             )
         if (
             self.input_cost_per_million is None
             or self.output_cost_per_million is None
         ):
             raise ModelPricingConfigurationError(
-                "Both OPENAI_INPUT_COST_PER_MILLION and "
-                "OPENAI_OUTPUT_COST_PER_MILLION must be explicitly configured."
+                "Both GEMINI_INPUT_COST_PER_MILLION and "
+                "GEMINI_OUTPUT_COST_PER_MILLION must be explicitly configured."
             )
         rates = (self.input_cost_per_million, self.output_cost_per_million)
         if any(not math.isfinite(rate) or rate < 0 for rate in rates):
@@ -511,7 +504,7 @@ def _extraction_timings(
         rendering_ms=ingestion.rendering_seconds * 1000,
         ocr_ms=ingestion.ocr_seconds * 1000,
         prompt_construction_preflight_ms=prompt_preflight_ms,
-        openai_api_request_response_ms=request_response_ms,
+        model_api_request_response_ms=request_response_ms,
         pydantic_response_parsing_ms=response_parsing_ms,
         evidence_validation_ms=evidence_validation_ms,
         total_extraction_ms=(perf_counter() - total_started) * 1000,
@@ -519,18 +512,26 @@ def _extraction_timings(
 
 
 def _create_client(timeout_seconds: Optional[float] = None) -> Any:
-    if not os.environ.get("OPENAI_API_KEY", "").strip():
-        raise ExtractionError("Set OPENAI_API_KEY in the environment to enable extraction")
+    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    if not api_key:
+        raise ExtractionError(
+            "Set GEMINI_API_KEY in the environment to enable extraction"
+        )
     try:
-        from openai import OpenAI
+        from google import genai
+        from google.genai import types
     except ImportError as exc:
         raise ExtractionError(
-            "The OpenAI SDK is missing. Install the project requirements first."
+            "The Google Gen AI SDK is missing. Install the project requirements first."
         ) from exc
-    options: dict[str, Any] = {"max_retries": 0}
+    timeout_ms = None
     if timeout_seconds is not None:
-        options["timeout"] = timeout_seconds
-    return OpenAI(**options)
+        timeout_ms = max(1, int(timeout_seconds * 1000))
+    http_options = types.HttpOptions(
+        timeout=timeout_ms,
+        retry_options=types.HttpRetryOptions(attempts=1),
+    )
+    return genai.Client(api_key=api_key, http_options=http_options)
 
 
 def _load_prompt() -> str:
@@ -556,209 +557,195 @@ def _request_extraction(
     page_message: str,
 ) -> Any:
     try:
-        from openai import OpenAIError
+        from google.genai import errors, types
+        from httpx2 import HTTPError
     except ImportError as exc:
         raise ExtractionError(
-            "The OpenAI SDK is missing. Install the project requirements first."
+            "The Google Gen AI SDK or HTTP transport is missing. "
+            "Install the project requirements first."
         ) from exc
 
     try:
-        return client.beta.chat.completions.parse(
+        return client.models.generate_content(
             model=model,
-            messages=[
-                {"role": "system", "content": prompt},
-                {"role": "user", "content": page_message},
-            ],
-            response_format=ExtractionResult,
-            max_completion_tokens=MAX_COMPLETION_TOKENS,
+            contents=page_message,
+            config=types.GenerateContentConfig(
+                system_instruction=prompt,
+                response_mime_type="application/json",
+                response_schema=_gemini_compatible_response_schema(),
+                max_output_tokens=MAX_COMPLETION_TOKENS,
+            ),
         )
-    except OpenAIError as exc:
-        status_code = getattr(exc, "status_code", None)
+    except errors.APIError as exc:
+        status_code = getattr(exc, "code", None)
         if not isinstance(status_code, int):
             status_code = None
-        rate_limit_headers = (
-            _capture_rate_limit_headers(getattr(exc, "response", None))
-            if status_code == 429
-            else {}
-        )
-        provider_code, provider_details = _openai_error_details(exc)
-        classification = _classify_api_error(
-            status_code,
-            provider_code,
-            provider_details,
-            rate_limit_headers,
-        )
+        provider_code, provider_details = _gemini_error_details(exc)
         raise ExtractionError(
-            "OpenAI structured extraction failed",
+            "Gemini structured extraction failed",
             status_code=status_code,
-            classification=classification,
+            classification=_classify_gemini_api_error(
+                status_code, provider_code, provider_details
+            ),
             provider_code=provider_code or None,
-            rate_limit_headers=rate_limit_headers,
+        ) from exc
+    except HTTPError as exc:
+        raise ExtractionError(
+            "Gemini network request failed",
+            classification="network_error",
         ) from exc
     except ValidationError as exc:
-        raise ExtractionError(f"Model response did not match the evidence schema: {exc}") from exc
+        raise ExtractionError(
+            "Gemini request configuration did not match the evidence schema",
+            classification="configuration_error",
+        ) from exc
 
 
-_STANDARD_RATE_LIMIT_HEADERS = {
-    "x-ratelimit-limit-requests",
-    "x-ratelimit-remaining-requests",
-    "x-ratelimit-reset-requests",
-    "x-ratelimit-limit-tokens",
-    "x-ratelimit-remaining-tokens",
-    "x-ratelimit-reset-tokens",
-    "retry-after",
-    "x-request-id",
-}
-
-
-def _is_rate_limit_header(name: str) -> bool:
-    if any(
-        marker in name
-        for marker in ("authorization", "api-key", "cookie", "secret", "credential")
-    ):
-        return False
-    if name in _STANDARD_RATE_LIMIT_HEADERS or name.startswith("x-ratelimit-"):
-        return True
-    return (
-        name.startswith(("x-", "openai-"))
-        and "project" in name
-        and (
-            ("rate" in name and "limit" in name)
-            or "ratelimit" in name
-            or "tpm" in name
-            or "rpm" in name
-        )
+def _gemini_compatible_response_schema() -> dict[str, Any]:
+    schema = ExtractionResult.model_json_schema()
+    schema["$defs"]["RoomRateCandidate"]["properties"]["price"].pop(
+        "exclusiveMinimum", None
     )
+    amount_schema = schema["$defs"]["CommercialTermCandidate"]["properties"][
+        "amount"
+    ]
+    for variant in amount_schema.get("anyOf", []):
+        variant.pop("exclusiveMinimum", None)
+    _remove_additional_properties(schema)
+    return schema
 
 
-def _capture_rate_limit_headers(response: Any) -> dict[str, str]:
-    headers = getattr(response, "headers", None)
-    if headers is None:
-        return {}
-    items = getattr(headers, "items", None)
-    if items is None:
-        return {}
-    return {
-        key: value
-        for key, value in sorted(
-            (
-                (str(name).casefold(), str(value).strip())
-                for name, value in items()
-                if _is_rate_limit_header(str(name).casefold())
-            ),
-            key=lambda item: item[0],
-        )
-    }
+def _remove_additional_properties(node: Any) -> None:
+    if isinstance(node, dict):
+        node.pop("additionalProperties", None)
+        for value in node.values():
+            _remove_additional_properties(value)
+    elif isinstance(node, list):
+        for value in node:
+            _remove_additional_properties(value)
 
 
-def _openai_error_details(error: BaseException) -> tuple[str, str]:
-    body = getattr(error, "body", None)
-    body_error = body.get("error", body) if isinstance(body, dict) else {}
+def _gemini_error_details(error: BaseException) -> tuple[str, str]:
+    response_json = getattr(error, "details", None)
+    if response_json is None:
+        response_json = getattr(error, "response_json", None)
+    body_error = (
+        response_json.get("error", response_json)
+        if isinstance(response_json, dict)
+        else {}
+    )
     if not isinstance(body_error, dict):
         body_error = {}
-    code = getattr(error, "code", None) or body_error.get("code") or ""
-    details = " ".join(
-        str(value)
-        for value in (body_error.get("type"), body_error.get("message"), str(error))
-        if value
-    )
-    return str(code), details
+    code = body_error.get("status") or body_error.get("code") or ""
+    message = body_error.get("message") or getattr(error, "message", "") or ""
+    return str(code), str(message)
 
 
-def _classify_api_error(
+def _classify_gemini_api_error(
     status_code: Optional[int],
     provider_code: str,
     details: str,
-    rate_limit_headers: Optional[dict[str, str]] = None,
 ) -> str:
-    if status_code != 429:
-        return "other_api_error"
-
-    normalized_code = provider_code.casefold()
-    normalized_details = f"{normalized_code} {details}".casefold()
-    quota_codes = {
-        "insufficient_quota",
-        "billing_hard_limit_reached",
-        "quota_exceeded",
-    }
-    quota_phrases = (
-        "insufficient quota",
-        "insufficient credits",
-        "exceeded your current quota",
-        "billing hard limit",
-    )
-    if normalized_code in quota_codes or any(
-        phrase in normalized_details for phrase in quota_phrases
+    normalized = f"{provider_code} {details}".casefold()
+    if status_code in {401, 403} or any(
+        phrase in normalized
+        for phrase in (
+            "api_key_invalid",
+            "api key not valid",
+            "invalid api key",
+            "unauthenticated",
+            "permission denied",
+        )
     ):
-        return "insufficient_quota"
+        return "authentication_error"
 
     token_limit = bool(
-        re.search(r"\btokens?\s+(?:per|/)\s*min(?:ute)?\b|\btpm\b", normalized_details)
+        re.search(r"\btokens?\s+(?:per|/)\s*min(?:ute)?\b|\btpm\b", normalized)
     )
     request_limit = bool(
-        re.search(r"\brequests?\s+(?:per|/)\s*min(?:ute)?\b|\brpm\b", normalized_details)
+        re.search(r"\brequests?\s+(?:per|/)\s*min(?:ute)?\b|\brpm\b", normalized)
     )
     if token_limit and not request_limit:
         return "tokens_per_minute_limit"
     if request_limit and not token_limit:
         return "requests_per_minute_limit"
-
-    headers = rate_limit_headers or {}
-    zero_remaining = {
-        "tokens": any(
-            "remaining" in name and "token" in name and value.strip() == "0"
-            for name, value in headers.items()
-        ),
-        "requests": any(
-            "remaining" in name and "request" in name and value.strip() == "0"
-            for name, value in headers.items()
-        ),
-    }
-    if zero_remaining["tokens"] != zero_remaining["requests"]:
-        return (
-            "tokens_per_minute_limit"
-            if zero_remaining["tokens"]
-            else "requests_per_minute_limit"
+    if status_code == 429:
+        if any(phrase in normalized for phrase in ("quota", "billing")):
+            return "quota_exceeded"
+        return "rate_limit"
+    if status_code in {400, 413} and any(
+        phrase in normalized
+        for phrase in (
+            "context_length",
+            "maximum context",
+            "context window",
+            "request too large",
+            "too many tokens",
         )
-    return "rate_limit"
+    ):
+        return "request_size_limit"
+    return "api_error"
 
 
 def _read_response(
     response: Any,
 ) -> tuple[ExtractionResult, Optional[int], Optional[int], Optional[int]]:
-    choices = getattr(response, "choices", None)
-    if not choices:
-        raise ExtractionError("Model response did not contain a completion choice")
-    message = getattr(choices[0], "message", None)
-    parsed = getattr(message, "parsed", None)
-    if parsed is None:
-        if getattr(choices[0], "finish_reason", None) in {"length", "max_tokens"}:
-            raise ExtractionError(
-                "Structured extraction response exceeded the configured output-token limit"
-            )
-        refusal = getattr(message, "refusal", None)
-        if refusal:
-            raise ExtractionError(f"Model refused the extraction request: {refusal}")
-        raise ExtractionError("Model response did not contain structured candidate data")
-
     try:
-        candidates = (
-            parsed
-            if isinstance(parsed, ExtractionResult)
-            else ExtractionResult.model_validate(parsed)
+        text = getattr(response, "text", None)
+    except (AttributeError, ValueError) as exc:
+        raise ExtractionError(
+            "Gemini response did not contain readable JSON",
+            classification="invalid_response",
+        ) from exc
+    if not isinstance(text, str) or not text.strip():
+        candidates = getattr(response, "candidates", None) or []
+        finish_reason = (
+            getattr(candidates[0], "finish_reason", None) if candidates else None
         )
+        if str(getattr(finish_reason, "name", finish_reason)).casefold() == "max_tokens":
+            message = "Gemini response exceeded the configured output-token limit"
+        else:
+            message = "Gemini response did not contain structured candidate JSON"
+        raise ExtractionError(message, classification="invalid_response")
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise ExtractionError(
+            "Gemini returned malformed JSON",
+            classification="invalid_response",
+        ) from exc
+    if not isinstance(payload, dict):
+        raise ExtractionError(
+            "Gemini response JSON must be an object",
+            classification="invalid_response",
+        )
+    missing_fields = sorted(set(ExtractionResult.model_fields) - payload.keys())
+    if missing_fields:
+        raise ExtractionError(
+            "Gemini response omitted required candidate categories: "
+            + ", ".join(missing_fields),
+            classification="invalid_response",
+        )
+    try:
+        candidates = ExtractionResult.model_validate(payload)
     except ValidationError as exc:
-        raise ExtractionError(f"Model response did not match the evidence schema: {exc}") from exc
+        raise ExtractionError(
+            "Gemini response did not match the evidence schema",
+            classification="invalid_response",
+        ) from exc
 
-    usage = getattr(response, "usage", None)
+    usage = getattr(response, "usage_metadata", None)
     if usage is None:
         return candidates, None, None, None
     try:
-        input_tokens = _optional_usage_count(usage, "prompt_tokens")
-        output_tokens = _optional_usage_count(usage, "completion_tokens")
-        total_tokens = _optional_usage_count(usage, "total_tokens")
+        input_tokens = _optional_usage_count(usage, "prompt_token_count")
+        output_tokens = _optional_usage_count(usage, "candidates_token_count")
+        total_tokens = _optional_usage_count(usage, "total_token_count")
     except (AttributeError, TypeError, ValueError) as exc:
-        raise ExtractionError("Model response contained malformed token usage") from exc
+        raise ExtractionError(
+            "Gemini response contained malformed token usage",
+            classification="invalid_response",
+        ) from exc
     return candidates, input_tokens, output_tokens, total_tokens
 
 

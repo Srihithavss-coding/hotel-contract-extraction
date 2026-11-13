@@ -15,6 +15,7 @@ from extract import (
     ExtractionError,
     ExtractionTimings,
     RoomRateCandidate,
+    _create_client,
     extract_folder,
 )
 
@@ -319,36 +320,8 @@ def test_rate_comparison_does_not_merge_distinct_room_types():
 
 
 def _insufficient_quota_reason(error):
-    cause = error.__cause__
-    if cause is None or getattr(cause, "status_code", None) != 429:
-        return None
-
-    body = getattr(cause, "body", None)
-    error_body = body.get("error", body) if isinstance(body, dict) else {}
-    if not isinstance(error_body, dict):
-        error_body = {}
-    code = getattr(cause, "code", None) or error_body.get("code")
-    error_type = error_body.get("type")
-    details = " ".join(
-        str(value)
-        for value in (code, error_type, error_body.get("message"), str(cause))
-        if value is not None
-    ).lower()
-    quota_codes = {
-        "insufficient_quota",
-        "billing_hard_limit_reached",
-        "quota_exceeded",
-    }
-    quota_phrases = (
-        "insufficient quota",
-        "insufficient credits",
-        "exceeded your current quota",
-        "billing hard limit",
-    )
-    if str(code).lower() in quota_codes or str(error_type).lower() in quota_codes:
-        return "OpenAI returned HTTP 429 because the account has insufficient API credits or quota."
-    if any(phrase in details for phrase in quota_phrases):
-        return "OpenAI returned HTTP 429 because the account has insufficient API credits or quota."
+    if error.classification == "quota_exceeded":
+        return "Gemini reports exhausted quota."
     return None
 
 
@@ -371,18 +344,11 @@ def _report_extraction_error(error, elapsed):
 
 
 def test_insufficient_credit_429_is_reported_as_blocked_not_inaccurate(capsys):
-    class QuotaError(Exception):
-        status_code = 429
-        code = "insufficient_quota"
-        body = {
-            "error": {
-                "message": "You exceeded your current quota.",
-                "code": "insufficient_quota",
-            }
-        }
-
-    error = ExtractionError("OpenAI structured extraction failed")
-    error.__cause__ = QuotaError()
+    error = ExtractionError(
+        "Gemini structured extraction failed",
+        status_code=429,
+        classification="quota_exceeded",
+    )
 
     with pytest.raises(pytest.skip.Exception, match="blocked before extraction"):
         _report_extraction_error(error, elapsed=1.25)
@@ -393,13 +359,11 @@ def test_insufficient_credit_429_is_reported_as_blocked_not_inaccurate(capsys):
 
 
 def test_ordinary_rate_limit_429_is_not_mislabeled_as_insufficient_credits():
-    class RateLimitError(Exception):
-        status_code = 429
-        code = "rate_limit_exceeded"
-        body = {"error": {"message": "Too many requests.", "code": "rate_limit_exceeded"}}
-
-    error = ExtractionError("OpenAI structured extraction failed")
-    error.__cause__ = RateLimitError()
+    error = ExtractionError(
+        "Gemini structured extraction failed",
+        status_code=429,
+        classification="rate_limit",
+    )
 
     assert _insufficient_quota_reason(error) is None
 
@@ -512,7 +476,7 @@ def test_timing_report_uses_milliseconds_and_preserves_total():
         rendering_ms=25,
         ocr_ms=80,
         prompt_construction_preflight_ms=12,
-        openai_api_request_response_ms=8000,
+        model_api_request_response_ms=8000,
         pydantic_response_parsing_ms=3,
         evidence_validation_ms=5,
         total_extraction_ms=8145,
@@ -530,7 +494,7 @@ def test_timing_report_uses_milliseconds_and_preserves_total():
             "pdf_discovery_ms",
             "pdf_ingestion_ms",
             "prompt_construction_preflight_ms",
-            "openai_api_request_response_ms",
+            "model_api_request_response_ms",
             "pydantic_response_parsing_ms",
             "evidence_validation_ms",
         )
@@ -544,16 +508,14 @@ def test_timing_report_uses_milliseconds_and_preserves_total():
 def test_live_c02_rate_extraction_matches_expected_candidates():
     started = perf_counter()
     try:
-        if not os.environ.get("OPENAI_API_KEY", "").strip():
+        if not os.environ.get("GEMINI_API_KEY", "").strip():
             pytest.fail(
-                "RUN_LIVE_EXTRACTION_C02=1 requires OPENAI_API_KEY in the environment "
+                "RUN_LIVE_EXTRACTION_C02=1 requires GEMINI_API_KEY in the environment "
                 "or .env; the key will not be displayed.",
                 pytrace=False,
             )
-        from openai import OpenAI
 
-        # A quota-exhausted request is not recoverable by retrying.
-        run = extract_folder(CONTRACTS / "c02", client=OpenAI(max_retries=0))
+        run = extract_folder(CONTRACTS / "c02", client=_create_client())
     except ExtractionError as exc:
         elapsed = round(perf_counter() - started, 3)
         _report_extraction_error(exc, elapsed)
@@ -648,8 +610,8 @@ def test_live_c02_rate_extraction_matches_expected_candidates():
         },
         "stage_timings": _timing_report(run.timings),
         "timing_notes": [
-            "The OpenAI SDK structured parse runs inside the API call; its local "
-            "response parsing time is included in openai_api_request_response_ms.",
+            "Gemini generation runs inside the API call; local JSON and Pydantic "
+            "response parsing is measured separately.",
             "pydantic_response_parsing_ms measures application-side response "
             "inspection and any validation after the SDK returns.",
             "rendering_ms and ocr_ms are subtotals of pdf_ingestion_ms.",

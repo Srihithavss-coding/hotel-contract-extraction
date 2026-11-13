@@ -23,6 +23,7 @@ from extract import (
     SeasonCandidate,
     TokenUsage,
     _validate_sources,
+    _create_client,
     extract_folder,
 )
 from ingest import PageContent, PageLine
@@ -1500,32 +1501,8 @@ def test_live_failure_output_writer_saves_reconciled_json(tmp_path):
 
 
 def _insufficient_quota_reason(error):
-    cause = error.__cause__
-    if cause is None or getattr(cause, "status_code", None) != 429:
-        return None
-
-    body = getattr(cause, "body", None)
-    error_body = body.get("error", body) if isinstance(body, dict) else {}
-    if not isinstance(error_body, dict):
-        error_body = {}
-    code = getattr(cause, "code", None) or error_body.get("code")
-    error_type = error_body.get("type")
-    details = " ".join(
-        str(value)
-        for value in (code, error_type, error_body.get("message"), str(cause))
-        if value is not None
-    ).lower()
-    quota_codes = {"insufficient_quota", "billing_hard_limit_reached", "quota_exceeded"}
-    quota_phrases = (
-        "insufficient quota",
-        "insufficient credits",
-        "exceeded your current quota",
-        "billing hard limit",
-    )
-    if str(code).lower() in quota_codes or str(error_type).lower() in quota_codes:
-        return "The API account has insufficient credits or quota."
-    if any(phrase in details for phrase in quota_phrases):
-        return "The API account has insufficient credits or quota."
+    if error.classification == "quota_exceeded":
+        return "Gemini reports exhausted API quota."
     return None
 
 
@@ -1547,26 +1524,22 @@ def _report_live_reconciliation_error(error, elapsed):
 
 
 def test_live_quota_exhaustion_is_blocked_not_an_accuracy_failure():
-    class QuotaError(Exception):
-        status_code = 429
-        code = "insufficient_quota"
-        body = {"error": {"message": "Insufficient credits.", "code": "insufficient_quota"}}
-
-    error = ExtractionError("OpenAI structured extraction failed")
-    error.__cause__ = QuotaError()
+    error = ExtractionError(
+        "Gemini structured extraction failed",
+        status_code=429,
+        classification="quota_exceeded",
+    )
 
     with pytest.raises(pytest.skip.Exception, match="No golden comparison was made"):
         _report_live_reconciliation_error(error, elapsed=0.5)
 
 
 def test_live_rate_limit_is_not_mislabeled_as_insufficient_credits():
-    class RateLimitError(Exception):
-        status_code = 429
-        code = "rate_limit_exceeded"
-        body = {"error": {"message": "Too many requests.", "code": "rate_limit_exceeded"}}
-
-    error = ExtractionError("OpenAI structured extraction failed")
-    error.__cause__ = RateLimitError()
+    error = ExtractionError(
+        "Gemini structured extraction failed",
+        status_code=429,
+        classification="rate_limit",
+    )
 
     assert _insufficient_quota_reason(error) is None
 
@@ -1582,9 +1555,7 @@ CONTRACTS = ROOT / "contracts"
 def test_live_reconciliation_matches_golden_fixture(contract_id):
     started = perf_counter()
     try:
-        from openai import OpenAI
-
-        run = extract_folder(CONTRACTS / contract_id, client=OpenAI(max_retries=0))
+        run = extract_folder(CONTRACTS / contract_id, client=_create_client())
     except ExtractionError as exc:
         elapsed = round(perf_counter() - started, 3)
         _report_live_reconciliation_error(exc, elapsed)

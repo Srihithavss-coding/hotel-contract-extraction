@@ -20,9 +20,6 @@ from extract import (
     ExtractionRun,
     ModelPricingConfigurationError,
     _create_client,
-    _capture_rate_limit_headers,
-    _classify_api_error,
-    _is_rate_limit_header,
     extract_folder,
 )
 from ingest import (
@@ -174,70 +171,6 @@ def _display_count(value: Optional[int]) -> str:
     return str(value) if value is not None else "unavailable"
 
 
-def _exception_chain(error: BaseException) -> list[BaseException]:
-    chain = []
-    seen = set()
-    current: Optional[BaseException] = error
-    while current is not None and id(current) not in seen:
-        seen.add(id(current))
-        chain.append(current)
-        current = current.__cause__ or current.__context__
-    return chain
-
-
-def _provider_error_details(
-    error: BaseException,
-) -> tuple[Optional[int], str, str, str, dict[str, str]]:
-    status = getattr(error, "status_code", None)
-    if not isinstance(status, int):
-        status = None
-    code = str(getattr(error, "provider_code", "") or "")
-    classification = str(getattr(error, "classification", "") or "")
-    headers = dict(getattr(error, "rate_limit_headers", {}) or {})
-    details = []
-    for item in _exception_chain(error):
-        candidate_status = getattr(item, "status_code", None)
-        if status is None and isinstance(candidate_status, int):
-            status = candidate_status
-        candidate_code = getattr(item, "provider_code", None) or getattr(
-            item, "code", None
-        )
-        if candidate_code:
-            code = str(candidate_code)
-        if not classification:
-            classification = str(getattr(item, "classification", "") or "")
-        if status == 429 and not headers:
-            headers = _capture_rate_limit_headers(getattr(item, "response", None))
-        body = getattr(item, "body", None)
-        body_error = body.get("error", body) if isinstance(body, dict) else {}
-        if isinstance(body_error, dict):
-            code = str(body_error.get("code") or code)
-            details.extend(
-                str(value)
-                for value in (body_error.get("type"), body_error.get("message"))
-                if value
-            )
-        details.append(str(item))
-    normalized_details = " ".join(details).casefold()
-    if not classification and status is not None:
-        classification = _classify_api_error(status, code, normalized_details, headers)
-    return status, code.casefold(), normalized_details, classification, headers
-
-
-def _format_rate_limit_headers(headers: dict[str, str]) -> str:
-    safe_headers = {
-        str(name).casefold(): str(value).strip()
-        for name, value in headers.items()
-        if _is_rate_limit_header(str(name).casefold())
-    }
-    if not safe_headers:
-        return " Rate-limit response headers: none of the tracked headers were present."
-    rendered = ", ".join(
-        f"{name}={value}" for name, value in sorted(safe_headers.items())
-    )
-    return f" Rate-limit response headers: {rendered}."
-
-
 def _format_error(error: BaseException) -> str:
     if isinstance(error, CLIInputError):
         return str(error)
@@ -256,66 +189,45 @@ def _format_error(error: BaseException) -> str:
     if isinstance(error, ExtractionRequestTooLarge):
         return f"Request-size or context safety limit: {error}"
     if isinstance(error, ExtractionError):
-        if "OPENAI_API_KEY" in str(error):
+        if "GEMINI_API_KEY" in str(error):
             return (
-                "OpenAI authentication configuration error: set OPENAI_API_KEY "
+                "Gemini authentication configuration error: set GEMINI_API_KEY "
                 "in the environment."
             )
-        if any(
-            phrase in str(error).casefold()
-            for phrase in (
-                "did not match the evidence schema",
-                "did not contain structured candidate data",
-                "did not contain a completion choice",
-                "exceeded the configured output-token limit",
-            )
-        ):
-            return f"Malformed or incomplete extraction response: {error}"
-        status, code, details, classification, headers = _provider_error_details(error)
-        if status == 401:
-            return "OpenAI authentication failed (HTTP 401). Check OPENAI_API_KEY."
-        if status == 429 and classification == "insufficient_quota":
+        status = error.status_code
+        classification = error.classification
+        if classification == "authentication_error":
+            return "Gemini authentication failed. Check GEMINI_API_KEY."
+        if classification == "quota_exceeded":
             return (
-                "OpenAI API credits/quota are insufficient. No automatic retry was "
-                f"performed (HTTP 429).{_format_rate_limit_headers(headers)}"
+                "Gemini API quota is exhausted; no automatic retry was performed."
             )
-        if status == 429:
-            rate_limit_messages = {
-                "requests_per_minute_limit": "OpenAI requests-per-minute limit reached",
-                "tokens_per_minute_limit": "OpenAI tokens-per-minute limit reached",
-                "rate_limit": "OpenAI rate limit reached; limit type was not identified",
-            }
-            message = rate_limit_messages.get(
-                classification,
-                "OpenAI rate limit reached; limit type was not identified",
-            )
+        if classification == "requests_per_minute_limit":
             return (
-                f"{message} (HTTP 429); no automatic retry was performed."
-                f"{_format_rate_limit_headers(headers)}"
+                "Gemini requests-per-minute limit reached; "
+                "no automatic retry was performed."
             )
-        context_phrases = (
-            "context_length",
-            "maximum context",
-            "context window",
-            "request too large",
-            "too many tokens",
-            "max_tokens",
-        )
-        context_details = f"{details} {code}"
-        if status in {400, 413} and any(
-            phrase in context_details for phrase in context_phrases
-        ):
-            return f"Model context/request-size limit reached (HTTP {status})."
-        if status is not None:
+        if classification == "tokens_per_minute_limit":
             return (
-                f"OpenAI API request failed (HTTP {status}; "
-                f"classification: {classification})."
+                "Gemini tokens-per-minute limit reached; "
+                "no automatic retry was performed."
             )
-        if classification == "other_api_error":
+        if classification == "rate_limit":
             return (
-                "OpenAI API request failed (HTTP status unavailable; "
-                "classification: other_api_error)."
+                "Gemini API rate limit reached, but the limit type could not be "
+                "identified; no automatic retry was performed."
             )
+        if classification == "network_error":
+            return "Gemini network request failed; check connectivity and try again."
+        if classification == "invalid_response":
+            return f"Gemini returned an invalid extraction response: {error}"
+        if classification == "request_size_limit":
+            return f"Gemini model context/request-size limit reached (HTTP {status})."
+        if classification == "configuration_error":
+            return f"Gemini request configuration failed: {error}"
+        if classification == "api_error":
+            status_text = f"HTTP {status}" if status is not None else "unknown HTTP status"
+            return f"Gemini API request failed ({status_text})."
         return f"Extraction failed: {error}"
     if isinstance(error, OSError):
         return f"Could not read the contract input: {error}"
