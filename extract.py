@@ -447,7 +447,7 @@ def extract_folder(
     prompt_preflight_ms = (perf_counter() - prompt_started) * 1000
 
     request_started = perf_counter()
-    active_client = client if client is not None else _create_client()
+    active_client = client if client is not None else _create_client(timeout_seconds=180)
     response = _request_extraction(active_client, settings.model, prompt, message)
     request_response_ms = (perf_counter() - request_started) * 1000
 
