@@ -1,143 +1,240 @@
 # Hotel Contract Analyser
 
-This command-line project reads the PDFs for one hotel contract and prepares JSON for a booking system. It aims to load only details supported by the documents. When documents disagree or leave a material detail unclear, it records a question for the loader instead of guessing.
+A Python command-line tool that reads the PDF documents for one hotel contract and produces structured JSON for a booking system. The focus is on traceable extraction: a value is loaded only when its source can be checked. When documents conflict or leave a material decision unresolved, the tool asks the loader instead of guessing.
 
-## How it works
+**Assignment brief:** [`ASSIGNMENT.pdf`](ASSIGNMENT.pdf)
+
+## 1. What the tool does
+
+The input is one folder for one hotel. The folder may contain one or two PDFs, such as a rate letter and a related email. The program reads all PDFs in that folder and produces one JSON object that follows the supplied schema in `schema/`.
+
+The output covers:
+
+- **Contract details:** hotel name, validity dates, currency and tax-inclusion status.
+- **Room rates:** date/season period, room, meal plan, occupancy and price. A normal room rate is per room per night; an extra-bed rate is per additional bed per night.
+- **Policies:** cancellation charges and advance-payment instalments.
+- **Questions:** material choices the loader must resolve, with the affected field, reason, options and supporting sources.
+- **Not loaded:** relevant terms that cannot safely be represented in the schema or lack enough detail, with a reason and source.
+
+Every loaded value includes a source object with the original filename, a 1-based page number and an exact supporting quotation. The quotation is intended to help a reviewer find the evidence quickly; it is not a model-written summary.
+
+The project follows the assignment's scope. Cancellation and advance payment are the supported policy types. Group rates for 10 or more rooms are out of scope and are not mixed into individual room rates. Other terms are included only when they can be safely represented; otherwise they are omitted or recorded in `not_loaded` when relevant.
+
+## 2. Design and processing flow
+
+The main design principle is **AI proposes; Python verifies and decides**.
+
+1. **PDF ingestion — `ingest.py`**  
+   The program discovers the PDFs in the supplied folder and reads every page. PyMuPDF extracts selectable text. Pages with little or no usable text are rendered and processed with local Tesseract OCR. Page records retain the filename, 1-based page number, text, extraction method and, for OCR, word coordinates and confidence information.
+
+2. **Candidate extraction — `extract.py`**  
+   Google Gemini receives the page evidence and proposes structured candidate facts, rates and policy terms. The response is parsed into Pydantic models. Each candidate carries its proposed source filename, page and quotation. Document text is treated as data, not as instructions to the model.
+
+3. **Evidence assessment — `extract.py`**  
+   Python independently checks that the cited file and page exist and that the quotation is present in that page's extracted text. Additional checks examine whether the evidence supports the candidate's meaning. Rate checks also consider OCR word confidence and table geometry, including nearby room, meal-plan and occupancy headings. Candidates are classified as verified, uncertain or invalid. Only verified candidates can be loaded automatically.
+
+4. **Deterministic reconciliation — `reconcile.py`**  
+   Ordinary Python rules apply the booking-system rules to verified candidates. This stage does not call the model. It handles rate identities, supported occupancy expansion, date periods, extra beds, policy schedules, deduplication and conflicts. It does not silently choose between two supported but contradictory statements.
+
+5. **Final schema validation — `analyse.py` and `reconcile.py`**  
+   The final object is validated against the supplied JSON schema. If a stage fails, the CLI exits with a non-zero status and does not emit partial JSON.
+
+### How uncertainty is handled
+
+- **Clear and supported:** load the value with its source.
+- **Conflicting or materially ambiguous:** ask a question and keep the affected value out of the loaded fields. Questions provide 2–4 options and cite the statements that created the choice.
+- **Relevant but not safely loadable:** put the term in `not_loaded` with a short reason and source.
+
+For example, a cancellation deadline that differs between a rate letter and an email should become a loader question, not an AI-selected answer. A reference-only rack rate should not be treated as a contracted price. A zero-penalty cancellation period is not emitted as a penalty tier. An advance-payment balance is not inferred unless the source supports it.
+
+## 3. Repository layout
 
 ```text
-PDFs -> read text / OCR -> AI suggests values and sources
-     -> Python checks the evidence -> rules build the JSON -> schema validation
+hotel-contract-extraction/
+├── ASSIGNMENT.pdf             # Original assignment brief
+├── contracts/                 # Supplied sample contract folders (c01-c05)
+├── expected/                  # Reference JSON fixtures for evaluation only
+├── out/                       # Local generated JSON and diagnostic logs
+├── prompts/                   # Extraction prompt material
+├── schema/                    # Supplied output JSON schema
+├── tests/                     # Offline tests and opt-in live tests
+├── analyse.py                 # One-folder command-line entry point
+├── ingest.py                  # PDF text extraction and OCR ingestion
+├── extract.py                 # Gemini extraction and evidence checks
+├── reconcile.py               # Deterministic business rules and validation
+├── evaluate.py                # Compare generated JSON with expected fixtures
+├── requirements.txt
+├── .env.example
+└── README.md
 ```
 
-The AI suggests possible contract details. Python checks whether each suggestion is supported by the cited file, page and quotation, then applies the business rules. Only verified values are loaded. This is the main design choice: a plausible answer is not enough unless the source supports it.
+`expected/` is for comparison only. The production pipeline reads the PDFs in the input folder; it must not read or copy the expected JSON fixtures to create its output. The sample folder names (`c01`–`c05`) are not extraction rules: the CLI accepts a folder path, and the same pipeline is used for each input. Hidden-contract generalization still needs separate evaluation.
 
-## What the output contains
+## 4. Setup
 
-The output follows the supplied schema in `schema/output.schema.json`:
+The documented development environment is Windows with Python 3.13.9. Python 3.10 or newer is required by the project.
 
-- `contract`: hotel name, validity dates, currency and tax status;
-- `rates`: period, room, meal plan, occupancy and price;
-- `policies`: cancellation charges and advance-payment instalments;
-- `questions`: unresolved decisions, with options and cited sources;
-- `not_loaded`: relevant terms that cannot safely be loaded, with a reason and source.
+### Install Python dependencies
 
-Each loaded contract value, rate and policy includes the source filename, page number and supporting words from the document.
-
-The samples also exercise scanned pages, prices in a separate email, single/double price expansion, extra-bed rates, conflicting policies, overlapping date periods, conflicting tax statements, group rates and rack rates.
-
-## Project files
-
-| File or folder | Purpose |
-| --- | --- |
-| `analyse.py` | Runs the pipeline for one contract folder. |
-| `ingest.py` | Reads PDF pages and uses Tesseract for scanned pages. |
-| `extract.py` | Requests structured candidate details and source quotations. |
-| `reconcile.py` | Checks evidence, applies rules and builds final JSON. |
-| `schema/` | Supplied output schema. |
-| `contracts/` | Five sample input folders. |
-| `expected/` | Reference JSON files for comparison, not production input. |
-| `evaluate.py` | Compares generated JSON with the reference files. |
-| `tests/` | Offline tests and opt-in live evaluation tests. |
-
-## Setup
-
-Development was carried out on Windows with Python 3.13.9. Use Python 3.10 or newer. Tesseract OCR must be installed for scanned pages, with English language data available. If needed, set `TESSERACT_CMD` and `TESSDATA_DIR` in `.env`.
-
-In PowerShell, from the project folder:
+Run these commands in PowerShell from the repository folder:
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install -r .\requirements.txt
+```
+
+### Install OCR support
+
+Scanned pages require Tesseract OCR to be installed separately from the Python packages. Make sure the English language data (`eng`) is installed and that Tesseract is available on `PATH`.
+
+If Tesseract is not on `PATH`, set `TESSERACT_CMD` and, when needed, `TESSDATA_DIR` in `.env`. The `.env.example` file shows the expected variable names and Windows path format.
+
+### Configure Gemini
+
+Create a local environment file and edit it:
+
+```powershell
 Copy-Item .\.env.example .\.env
 notepad .\.env
 ```
 
-Set `GEMINI_API_KEY` from Google AI Studio, `GEMINI_MODEL`,
-`GEMINI_PRICING_MODEL`, `GEMINI_INPUT_COST_PER_MILLION` and
-`GEMINI_OUTPUT_COST_PER_MILLION` in `.env`. The pricing model must exactly
-match the selected Gemini model, and the two prices must be its current USD
-prices per million tokens. Keep `.env` private; only `.env.example` belongs in
-Git. The SDK request is configured for one attempt; rate-limit and network
-failures are reported rather than automatically retried.
+Set the following values in `.env`:
 
-The Gemini integration has not been validated with a live Google AI Studio
-request. Passing offline tests does not establish live extraction accuracy.
+```dotenv
+GEMINI_API_KEY=your_google_ai_studio_api_key
+GEMINI_MODEL=gemini-3.8-flash
+GEMINI_PRICING_MODEL=gemini-3.8-flash
+GEMINI_INPUT_COST_PER_MILLION=your_current_input_price_usd_per_million_tokens
+GEMINI_OUTPUT_COST_PER_MILLION=your_current_output_price_usd_per_million_tokens
+```
 
-The program checks its estimated request cost before calling the model and stops if the estimate exceeds USD 0.15. Reported cost is an estimate, not a provider billing guarantee. The CLI also enforces the 60-second per-contract limit.
+Also set `TESSERACT_CMD` and `TESSDATA_DIR` if your local Tesseract installation needs explicit paths. `GEMINI_PRICING_MODEL` must match `GEMINI_MODEL`. Enter the current applicable USD input and output prices for the selected model; use zero only when the applicable price is actually zero. Do not copy an example price from an old README or assume that a ChatGPT subscription includes API usage.
 
-## Run a contract
+Keep `.env` private. It contains the API key and must not be committed. Commit `.env.example`, not `.env`.
 
-Create the output folder, then run one contract at a time. JSON is written to the `.json` file; progress and diagnostics go to the `.log` file:
+## 5. Run one hotel folder
+
+The CLI takes exactly one required argument: the folder containing that hotel's PDF documents. To run a sample and save JSON separately from diagnostics:
 
 ```powershell
 New-Item -ItemType Directory -Force .\out | Out-Null
-python .\analyse.py .\contracts\c01 1> .\out\c01.json 2> .\out\c01.log
+python .\analyse.py ".\contracts\c01" 1> ".\out\c01.json" 2> ".\out\c01.log"
 ```
 
-Repeat for `c02` through `c05`, changing the input folder and output filename. Only keep a JSON file when the command finishes successfully.
+Replace `c01` with `c02`, `c03`, `c04` or `c05` to run the other samples. Run each folder separately.
 
-## Evaluate the five samples
+- Successful standard output contains the final JSON.
+- Progress messages, token usage, cost estimates, warnings and errors are written to standard error.
+- A non-zero exit code means the run did not produce a complete JSON result. Check the matching `.log` file.
+- Do not evaluate a zero-byte JSON file left by a failed command; remove it and keep the diagnostic log for troubleshooting.
 
-After all five real output files have been generated, run:
+## 6. Runtime and cost controls
+
+The assignment target is **no more than 60 seconds and USD 0.15 per contract**. The CLI tracks a 60-second end-to-end budget covering ingestion, extraction, reconciliation and final validation. The extraction request is also bounded by configured model pricing and a preflight cost estimate.
+
+The implementation includes these guardrails:
+
+- a bounded PDF-ingestion worker;
+- a 30-page input limit;
+- a 120,000-character request limit;
+- an 8,192-token maximum completion setting;
+- explicit input/output token prices that must match the configured model;
+- a USD 0.15 preflight cost ceiling and a post-response estimated-cost check when usage is available;
+- automatic SDK retries disabled, so hidden retry attempts do not inflate runtime or usage.
+
+Tesseract OCR runs locally rather than through a paid OCR API. The model cost is an estimate calculated from configured prices and provider-reported token usage; it is not a provider billing guarantee. A provider-side delay or HTTP error can still prevent a run from finishing within the target.
+
+## 7. Evaluation
+
+After successful live runs have generated the five JSON files, compare them with the supplied fixtures:
 
 ```powershell
 python .\evaluate.py .\out .\expected
 ```
 
-The evaluator checks rates, contract details, policies, sources, questions and `not_loaded` items. Schema-valid JSON can still contain wrong or missing values. Do not copy files from `expected/` into `out/`; the output files must come from `analyse.py`.
+The evaluator checks more than JSON syntax. It compares rate identities and prices, contract details, cancellation and advance-payment terms, source filename/page/quote presence, question topics and expected `not_loaded` items. A schema-valid JSON file can still contain missing or incorrect business values.
 
-## Tests
+Do not copy files from `expected/` into `out/`. The `out/` files must be generated by `analyse.py` from the contract PDFs.
 
-The offline test suite does not make paid model calls. Run it with both live flags disabled:
+### Expected shape of the supplied samples
+
+These are the expected fixture counts and scenarios, not claims that the live pipeline has completed all five comparisons.
+
+| Sample | Main case | Expected rate rows | Expected questions | Expected `not_loaded` |
+|---|---|---:|---|---:|
+| c01 — Saffron Courtyard | Supported single/double expansion; incomplete festive surcharge | 24 | 0 | 1 |
+| c02 — Coral Sands | Scanned rate table; individual and group-rate wording | 16 | 0 | 1 |
+| c03 — Misty Ridge | Email supplies extra-bed rates; cancellation conflict | 54 | 1 (cancellation) | 0 |
+| c04 — Lotus Pavilion | Overlapping periods and conflicting tax wording | 8 | 2 (tax and rates) | 0 |
+| c05 — Banyan Grove | Long contract; reference-only rack rates | 24 | 0 | 1 |
+
+## 8. Verification results and current status
+
+The results below distinguish offline tests, a focused live extraction test and a complete contract-level run. They are not interchangeable.
+
+| Check | Result |
+|---|---|
+| Offline test suite | **180 passed, 6 skipped** in 251.24 seconds. Live flags were disabled. |
+| Focused live c02 rate-extraction test | **Passed twice**. Recorded runtimes: 145.52 seconds and 269.80 seconds; latest run: 269.80 seconds. This is an extraction-stage candidate comparison, not a complete c02 JSON run. |
+| Full c02 CLI attempt | Not completed. The latest attempt ingested 2 pages, then received Gemini HTTP 504 after 61.281 seconds. `out/c02.json` was empty. |
+| Full c01–c05 live golden comparison | Not completed successfully. A complete five-contract set of generated JSON files and final evaluator results is not available. |
+| Three live runs per contract | Not completed. Deterministic reconciliation tests do not establish repeatability across separate live Gemini calls. |
+| Hidden/unseen contracts | Not tested. |
+
+### Per-sample runtime, token and cost record
+
+The assignment asks for runtime, token usage and cost for each sample. The table intentionally records unavailable measurements rather than estimating or inventing them. A failed provider request is not an accuracy score.
+
+| Sample | End-to-end runtime | Input / output tokens | Estimated API cost | Final evaluator result |
+|---|---|---|---|---|
+| c01 | No completed run recorded | Not recorded | Not available | Not evaluated |
+| c02 | Latest CLI attempt: 61.281 s, blocked by HTTP 504; no final JSON. Focused extraction test: 269.80 s, not end-to-end. | Not available for the failed CLI run; focused-test usage not recorded here | Not available | Not evaluated |
+| c03 | No completed run recorded | Not recorded | Not available | Not evaluated |
+| c04 | No completed run recorded | Not recorded | Not available | Not evaluated |
+| c05 | No completed run recorded | Not recorded | Not available | Not evaluated |
+
+The focused c02 test demonstrates that the configured Gemini extraction path can complete the specific rate-candidate comparison. It does not demonstrate that the full pipeline meets the 60-second target, that the final JSON matches the fixture, or that all five contracts pass. The latest full c02 CLI attempt was blocked by a provider HTTP 504 after ingestion. This is an infrastructure failure, not a completed accuracy comparison.
+
+## 9. Run the tests
+
+### Offline tests
+
+The offline suite does not make live Gemini requests. Run it with both live flags disabled:
 
 ```powershell
 $env:RUN_LIVE_EXTRACTION_C02 = "0"
 $env:RUN_LIVE_RECONCILIATION = "0"
-python -m pytest -v
+python -m pytest -q
 ```
 
-### Latest local verification
+### Focused live c02 extraction test
 
-With both live flags set to `0`, `python -m pytest -q` completed successfully:
-**173 passed, 6 skipped in 45.09 seconds**. The opt-in live extraction and
-live reconciliation tests were not run. This offline result does not establish
-live model accuracy, c01–c05 evaluation scores, or consistency across three
-live runs. The previously reported c02 16/16 result remains a separate,
-focused extraction-stage test, not part of this offline result.
+This opt-in test makes a real Gemini API request and requires a valid `.env`, available provider quota and configured pricing:
 
-Live tests are separate and make paid API requests. They need working credentials, available quota and a compatible model. If the provider returns a quota or rate-limit error, the test is blocked; it is not evidence that extraction accuracy passed or failed. Avoid repeatedly retrying after the same provider error.
+```powershell
+$env:RUN_LIVE_EXTRACTION_C02 = "1"
+$env:GEMINI_MODEL = "gemini-3.8-flash"
+$env:RUN_LIVE_RECONCILIATION = "0"
+python -m pytest -q .\tests\test_extract_live.py::test_live_c02_rate_extraction_matches_expected_candidates
+```
 
-## Validation status
+Live tests can fail before producing an extraction result because of authentication, quota, rate limits, provider availability or gateway timeouts. Such a blocked request should be reported as a blocked run, not as a successful or failed accuracy comparison. Avoid repeatedly retrying the same provider error.
 
-| Check | Current evidence |
-| --- | --- |
-| Offline tests | See **Latest local verification** above. |
-| Focused c02 OCR/rate extraction | One recorded run matched **16/16** expected table-rate candidates and verified those 16. This was an extraction-stage check, not a full final-JSON comparison; another attempt did not reproduce the same result consistently. |
-| Full c01-c05 comparison | Not completed successfully. A c01 mismatch was reported; other attempts were interrupted by provider quota/rate limits. |
-| Three runs per contract | Not completed. Deterministic reconciliation for identical candidates does not prove repeatability across separate live model calls. |
-| Generated `out/` files | `out/c01.json` through `out/c05.json` are not present in this repository snapshot. They are required by the assignment and must be generated by successful runs. |
-| Hidden contracts | Not tested. |
+## 10. Limitations
 
-The assignment asks for a time, token and cost table for every sample. Those figures have not been established for the five final outputs, so they are not invented here:
+- OCR can misread digits, punctuation or table columns. Word confidence and geometry checks reduce risk but cannot guarantee perfect recognition.
+- Gemini can omit or misinterpret a fact. Evidence validation can reject unsupported candidates, but it cannot recover facts the model did not propose.
+- Evidence checks use deterministic validation rules and known patterns. Unfamiliar wording or document layouts may be marked uncertain or missed.
+- The supplied schema supports only a limited set of booking fields and policy types. Some commercial terms therefore belong in `not_loaded` or are outside the assignment scope.
+- Provider availability and rate limits affect live execution. A valid API configuration does not guarantee every request will complete within the runtime budget.
+- Full live golden evaluation, three-run consistency across all five samples and testing on unseen contracts remain outstanding.
 
-| Contract | Runtime | Input/output tokens | Estimated cost | Final `evaluate.py` result |
-| --- | --- | --- | --- | --- |
-| c01 | Not verified | Not verified | Not verified | No output file |
-| c02 | Not verified for final JSON | Not verified for final JSON | Not verified for final JSON | No output file |
-| c03 | Not verified | Not verified | Not verified | No output file |
-| c04 | Not verified | Not verified | Not verified | No output file |
-| c05 | Not verified | Not verified | Not verified | No output file |
+## 11. AI-tool disclosure
 
-`evaluate.py` was checked against the current repository snapshot, but it found no `out/c01.json` through `out/c05.json`. Its missing-file report is not an accuracy score. Add the real evaluator output after successful runs generate those files.
+Google Gemini (`gemini-3.8-flash` in the recorded live tests) is the model provider used by the extraction pipeline. GitHub Copilot in VS Code and ChatGPT assisted with code inspection, debugging, test reasoning and documentation. Suggestions were reviewed against the implementation and local tests. Live-test statements in this README refer only to commands actually run; AI assistance is not presented as independent validation.
 
-## Limitations and next steps
+## 12. Submission summary
 
-OCR can misread digits or table columns. A model can omit or misinterpret a detail. Evidence checks can reject unsupported suggestions, but they cannot recover every missed value. Unusual layouts or wording may also fall outside the current extraction and verification rules.
-
-With another week, I would complete repeatable live runs on all five samples, review each evaluator miss, improve only the rules responsible for those misses, and test the same workflow on additional contracts. I would prioritise extraction accuracy and repeatability over adding features.
-
-## AI-tool disclosure
-
-An AI assistant using Copilot SDK in VS Code assisted with code inspection, implementation, tests and documentation. The live extraction results above came from runs of the project tests. `evaluate.py` compares generated output files; it does not create those files.
+The repository contains a one-folder command-line pipeline, local PDF/OCR ingestion, structured Gemini candidate extraction, independent evidence checks, deterministic reconciliation, source-backed output fields and schema validation. The offline suite and the focused live c02 extraction test passed as recorded above. Complete five-contract live evaluation and three-run repeatability were not established because the full c02 command was blocked by a Gemini HTTP 504 and the remaining end-to-end runs were not completed.
